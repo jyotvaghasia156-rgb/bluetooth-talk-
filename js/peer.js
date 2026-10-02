@@ -1,7 +1,7 @@
 /**
- * BlueTalk - Peer-to-Peer Communication & Multi-Client Channel Network
- * Bridges Bluetooth GATT, Local Broadcast Channels, and WebRTC
- * for seamless real-time talking across devices, windows, chat rooms, and frequencies.
+ * BlueTalk Pro - Peer-to-Peer & Cross-Device Live Network Coordinator
+ * Seamlessly bridges Local BroadcastChannel, Web Bluetooth GATT, and
+ * the Python Real-Time SSE/REST Relay Server for genuine cross-device communication.
  */
 
 class PeerNetwork {
@@ -12,17 +12,27 @@ class PeerNetwork {
         this.peerId = 'peer_' + Math.random().toString(36).substring(2, 9);
 
         this.broadcastChannel = null;
-        this.activePeers = new Map(); // peerId -> { callsign, lastSeen, isTalking, room, channel }
+        this.eventSource = null;
+        this.activePeers = new Map(); // peerId -> { callsign, lastSeen, isTalking, room, channel, avatar }
+
+        // Live connection telemetry
+        this.isRelayConnected = false;
+        this.latencyMs = 0;
+        this.lastLatencyCheck = 0;
 
         // Event callbacks
         this.onTextMessage = null;   // (msg) => void
         this.onVoiceStream = null;   // (audioBlob, isFinal, sender) => void
         this.onVoiceNote = null;     // (msg) => void
         this.onRadioCallout = null;  // (callout) => void
+        this.onTacticalSound = null; // (soundId, label, sender) => void
+        this.onMorsePacket = null;   // (morse, text, sender) => void
         this.onPeerTalking = null;   // (sender, isTalking) => void
         this.onPeerListUpdate = null;// (peersArray) => void
+        this.onNetworkStatus = null; // (isRelayOnline, latencyMs, serverInfo) => void
 
         this.initChannel();
+        this.initServerRelay();
         this.startHeartbeat();
     }
 
@@ -45,6 +55,7 @@ class PeerNetwork {
     setChannel(channelNumber) {
         this.currentChannel = parseInt(channelNumber, 10) || 1;
         this.initChannel();
+        this.reconnectServerRelay();
         this.activePeers.clear();
         this.broadcastPresence();
         if (this.onPeerListUpdate) {
@@ -55,6 +66,7 @@ class PeerNetwork {
     setChatRoom(roomId) {
         this.currentRoom = roomId || 'general-hq';
         this.initChannel();
+        this.reconnectServerRelay();
         this.broadcastPresence();
     }
 
@@ -66,21 +78,88 @@ class PeerNetwork {
         }
 
         const channelName = `bluetalk_ch_${this.currentChannel}_${this.currentRoom}`;
-        this.broadcastChannel = new BroadcastChannel(channelName);
+        try {
+            this.broadcastChannel = new BroadcastChannel(channelName);
+            this.broadcastChannel.onmessage = (event) => {
+                this.handleIncomingPacket(event.data);
+            };
+        } catch (e) {
+            console.warn('BroadcastChannel not supported in this browser context:', e);
+        }
+    }
 
-        this.broadcastChannel.onmessage = (event) => {
-            this.handleIncomingPacket(event.data);
-        };
+    /**
+     * Connect to live Python HTTP / SSE relay server for genuine cross-device communication
+     */
+    initServerRelay() {
+        if (typeof window === 'undefined' || !window.location.protocol.startsWith('http')) return;
+
+        if (this.eventSource) {
+            try { this.eventSource.close(); } catch (e) {}
+            this.eventSource = null;
+        }
+
+        const sseUrl = `/api/events?peerId=${encodeURIComponent(this.peerId)}&channel=${this.currentChannel}&room=${encodeURIComponent(this.currentRoom)}`;
+
+        try {
+            this.eventSource = new EventSource(sseUrl);
+
+            this.eventSource.onopen = () => {
+                this.isRelayConnected = true;
+                this.measureLatency();
+            };
+
+            this.eventSource.onmessage = (e) => {
+                try {
+                    const packet = JSON.parse(e.data);
+                    if (packet && packet.type !== 'CONNECTED' && packet.type !== 'SERVER_CONNECTED') {
+                        this.handleIncomingPacket(packet);
+                    }
+                } catch (err) {}
+            };
+
+            this.eventSource.onerror = () => {
+                this.isRelayConnected = false;
+                if (this.onNetworkStatus) this.onNetworkStatus(false, 0, null);
+            };
+        } catch (err) {
+            this.isRelayConnected = false;
+        }
+    }
+
+    reconnectServerRelay() {
+        this.initServerRelay();
+    }
+
+    async measureLatency() {
+        if (!window.location.protocol.startsWith('http')) return;
+        const start = performance.now();
+        try {
+            const res = await fetch('/api/status', { cache: 'no-store' });
+            if (res.ok) {
+                const data = await res.json();
+                this.latencyMs = Math.round(performance.now() - start);
+                this.isRelayConnected = true;
+                if (this.onNetworkStatus) {
+                    this.onNetworkStatus(true, this.latencyMs, data);
+                }
+            }
+        } catch (e) {
+            this.isRelayConnected = false;
+            if (this.onNetworkStatus) this.onNetworkStatus(false, 0, null);
+        }
     }
 
     startHeartbeat() {
-        // Send presence ping every 3 seconds
         setInterval(() => {
             this.broadcastPresence();
             this.cleanupStalePeers();
+            if (Date.now() - this.lastLatencyCheck > 8000) {
+                this.lastLatencyCheck = Date.now();
+                this.measureLatency();
+            }
         }, 3000);
 
-        // Listen also to bluetooth manager data packets
         if (window.btManager) {
             window.btManager.onDataReceived = (packet) => {
                 if (packet && packet.channel === this.currentChannel && (!packet.room || packet.room === this.currentRoom)) {
@@ -215,30 +294,82 @@ class PeerNetwork {
         return packet;
     }
 
+    /**
+     * Send Tactical Sound Effect cue across network
+     */
+    sendTacticalSound(soundId, label) {
+        const user = window.auth ? window.auth.currentUser : null;
+        const packet = {
+            type: 'TACTICAL_SOUND',
+            id: 'sfx_' + Date.now(),
+            peerId: this.peerId,
+            callsign: this.callsign,
+            channel: this.currentChannel,
+            room: this.currentRoom,
+            avatar: user ? (user.avatar || '🦅') : '🦅',
+            soundId: soundId,
+            label: label,
+            timestamp: Date.now()
+        };
+
+        this.sendRawPacket(packet);
+        return packet;
+    }
+
+    /**
+     * Send Morse Code Transmission across network
+     */
+    sendMorseTransmission(morseCode, decodedText) {
+        const user = window.auth ? window.auth.currentUser : null;
+        const packet = {
+            type: 'MORSE_CODE',
+            id: 'morse_' + Date.now(),
+            peerId: this.peerId,
+            callsign: this.callsign,
+            channel: this.currentChannel,
+            room: this.currentRoom,
+            avatar: user ? (user.avatar || '🦅') : '🦅',
+            morse: morseCode,
+            text: decodedText,
+            timestamp: Date.now()
+        };
+
+        this.sendRawPacket(packet);
+        return packet;
+    }
+
     sendRawPacket(packet) {
+        // 1. Post to in-browser local broadcast channel
         if (this.broadcastChannel) {
             try {
                 this.broadcastChannel.postMessage(packet);
-            } catch (e) {
-                console.warn('BroadcastChannel error:', e);
-            }
+            } catch (e) {}
         }
 
+        // 2. Post to Bluetooth GATT if connected
         if (window.btManager && window.btManager.isConnected) {
             window.btManager.sendPacket(packet);
+        }
+
+        // 3. Post to Python Real-Time Relay Server (Cross-Device Broadcast)
+        if (window.location.protocol.startsWith('http')) {
+            fetch('/api/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(packet)
+            }).catch(() => {});
         }
     }
 
     async handleIncomingPacket(packet) {
         if (!packet || packet.peerId === this.peerId) {
-            return; // Ignore our own echo
+            return;
         }
 
-        // Room and Channel filtering
         if (packet.channel && packet.channel !== this.currentChannel) return;
         if (packet.room && packet.room !== this.currentRoom) return;
 
-        // Update peer table
+        // Update peer presence table
         this.activePeers.set(packet.peerId, {
             peerId: packet.peerId,
             callsign: packet.callsign || 'UNKNOWN',
@@ -254,6 +385,7 @@ class PeerNetwork {
             this.onPeerListUpdate(Array.from(this.activePeers.values()));
         }
 
+        // Route by packet type
         switch (packet.type) {
             case 'PRESENCE':
                 if (this.onPeerTalking) {
@@ -261,66 +393,66 @@ class PeerNetwork {
                 }
                 break;
 
-            case 'VOICE_STREAM':
-                if (packet.audioData) {
-                    const audioBlob = await this.base64ToBlob(packet.audioData, packet.mimeType || 'audio/webm');
-                    if (this.onVoiceStream) {
-                        this.onVoiceStream(audioBlob, packet.isFinal, packet.callsign);
-                    }
-                }
-                break;
-
-            case 'VOICE_NOTE':
-                if (packet.audioData) {
-                    const audioBlob = await this.base64ToBlob(packet.audioData, packet.mimeType || 'audio/webm');
-                    const messageObj = {
-                        ...packet,
-                        audioBlob: audioBlob,
-                        isIncoming: true
-                    };
-                    if (this.onVoiceNote) {
-                        this.onVoiceNote(messageObj);
-                    }
-                    window.sfx.playMessageChime();
-                }
-                break;
-
             case 'TEXT_MESSAGE':
+                window.sfx.playMessageChime();
                 if (this.onTextMessage) {
-                    this.onTextMessage({
-                        ...packet,
-                        isIncoming: true
-                    });
-                    window.sfx.playMessageChime();
+                    this.onTextMessage({ ...packet, isIncoming: true });
                 }
                 break;
 
             case 'RADIO_CALLOUT':
+                window.sfx.playRogerBeep();
                 if (this.onRadioCallout) {
-                    this.onRadioCallout({
+                    this.onRadioCallout({ ...packet, isIncoming: true });
+                }
+                break;
+
+            case 'VOICE_STREAM':
+                if (packet.audioData && this.onVoiceStream) {
+                    const audioBlob = await this.base64ToBlob(packet.audioData, packet.mimeType || 'audio/webm');
+                    this.onVoiceStream(audioBlob, packet.isFinal, packet.callsign);
+                }
+                break;
+
+            case 'VOICE_NOTE':
+                window.sfx.playMessageChime();
+                if (packet.audioData && this.onVoiceNote) {
+                    const audioBlob = await this.base64ToBlob(packet.audioData, packet.mimeType || 'audio/webm');
+                    this.onVoiceNote({
                         ...packet,
+                        audioBlob: audioBlob,
                         isIncoming: true
                     });
-                    window.sfx.playMessageChime();
+                }
+                break;
+
+            case 'TACTICAL_SOUND':
+                if (this.onTacticalSound) {
+                    this.onTacticalSound(packet.soundId, packet.label, packet.callsign);
+                }
+                break;
+
+            case 'MORSE_CODE':
+                if (this.onMorsePacket) {
+                    this.onMorsePacket(packet.morse, packet.text, packet.callsign);
                 }
                 break;
         }
     }
 
     blobToBase64(blob) {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => {
-                const base64 = reader.result.split(',')[1];
-                resolve(base64);
+                const base64data = reader.result.split(',')[1];
+                resolve(base64data);
             };
-            reader.onerror = reject;
             reader.readAsDataURL(blob);
         });
     }
 
-    async base64ToBlob(base64, mimeType = 'audio/webm') {
-        const byteCharacters = atob(base64);
+    async base64ToBlob(base64Data, mimeType) {
+        const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
             byteNumbers[i] = byteCharacters.charCodeAt(i);

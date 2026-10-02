@@ -6,11 +6,15 @@
     <meta name="theme-color" content="#0a0d14">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="BlueTalk">
-    <meta name="description" content="Real-time Bluetooth & Wireless Walkie-Talkie and Live Chat for Laptops and Phones">
+    <meta name="apple-mobile-web-app-title" content="BlueTalk Pro">
+    <meta name="description" content="Professional Tactical Bluetooth & Wireless Walkie-Talkie with Morse Telegraph, Voice Modulator FX, and Spectrum Radar">
     <link rel="manifest" href="manifest.json">
-    <title>BlueTalk Pro - Bluetooth Walkie-Talkie & Live Communicator</title>
+    <title>BlueTalk Pro - Tactical Walkie-Talkie & Live Communicator</title>
     <link rel="stylesheet" href="css/style.css">
+    <!-- Google Fonts for High-Tech Military / Cyberpunk Aesthetics -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=JetBrains+Mono:wght@400;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -19,8 +23,8 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="login-logo-glow">📻</div>
-                <h2>BLUETALK <span>OPERATOR LOGIN</span></h2>
-                <p>Tactical Bluetooth & Wireless Comm Clearance</p>
+                <h2>BLUETALK <span>PRO CLEARANCE</span></h2>
+                <p>Tactical Bluetooth & High-Frequency Comm Network</p>
             </div>
 
             <!-- Google Account Sign-In Button -->
@@ -35,7 +39,7 @@
             </button>
 
             <div class="login-divider">
-                <span>OR SIGN IN AS TACTICAL OPERATOR</span>
+                <span>OR SIGN IN AS FIELD OPERATOR</span>
             </div>
 
             <form id="operator-login-form">
@@ -49,7 +53,7 @@
 
                 <!-- Callsign Input -->
                 <div class="login-group">
-                    <label for="login-callsign-input">Operator Callsign / Name</label>
+                    <label for="login-callsign-input">Operator Callsign / Unit</label>
                     <div class="input-with-btn">
                         <input type="text" id="login-callsign-input" maxlength="12" placeholder="e.g. VIPER-07" required autocomplete="off">
                         <button type="button" id="btn-randomize-callsign" class="btn-rnd" title="Generate Random Callsign">🎲 Random</button>
@@ -73,13 +77,13 @@
 
                 <!-- Security / Link Notice -->
                 <div class="login-security-notice">
-                    <span>🔒 AES-256 Bit Wireless Link</span>
-                    <span>• Web Bluetooth & Multi-Room</span>
+                    <span>🔒 AES-256 Bit Encrypted Wireless Link</span>
+                    <span>• Web Bluetooth & Live Audio Relay</span>
                 </div>
 
                 <!-- Submit Button -->
                 <button type="submit" class="btn-auth-enter">
-                    <span>⚡ ENTER COMM NETWORK</span>
+                    <span>⚡ INITIALIZE OPERATOR LINK</span>
                 </button>
             </form>
         </div>
@@ -93,11 +97,16 @@
                 <div class="brand-logo">📻</div>
                 <div class="brand-info">
                     <h1>BLUETALK <span>PRO</span></h1>
-                    <span class="tagline">BLUETOOTH & WIRELESS LIVE COMMUNICATOR</span>
+                    <span class="tagline">MIL-SPEC TACTICAL WALKIE-TALKIE</span>
                 </div>
             </div>
 
             <div class="header-status-group">
+                <!-- Live Network Latency Badge -->
+                <div id="network-latency-badge" class="network-badge online" title="Real-Time Network Sync Status">
+                    <span class="badge-dot"></span> LAN SYNC
+                </div>
+
                 <!-- User Profile Badge -->
                 <button id="user-profile-btn" class="user-profile-pill" title="Click to Switch Operator / Logout">
                     <span id="user-avatar-badge">🦅</span>
@@ -117,15 +126,15 @@
                 <!-- Dark / Light Theme Toggle -->
                 <button id="theme-toggle-btn" class="btn-icon" title="Toggle Dark / Light Mode">☀️</button>
                 
-                <!-- Share Phone / Connect Button -->
-                <button id="share-phone-btn" class="btn-icon" title="Connect Phone / Share Link">📱</button>
+                <!-- Share Phone / QR Connect Button -->
+                <button id="share-phone-btn" class="btn-icon qr-pulse-btn" title="Connect Phone via Instant QR Code">📱 QR</button>
                 
                 <!-- Settings Button -->
                 <button id="settings-btn" class="btn-icon" title="Audio & Radio Settings">⚙️</button>
             </div>
         </header>
 
-        <!-- ================= MAIN THREE-COLUMN / MOBILE WORKSPACE ================= -->
+        <!-- ================= MAIN MULTI-COLUMN WORKSPACE ================= -->
         <div class="main-body">
 
             <!-- LEFT / TAB 1: TACTICAL RADIO TRANSMITTER & PTT -->
@@ -133,8 +142,8 @@
                 <!-- Frequency Display Screen -->
                 <div class="frequency-card">
                     <div class="freq-meta">
-                        <span>FREQ / UHF</span>
-                        <span id="freq-status">STATION READY</span>
+                        <span class="meta-glow">FREQ / UHF BAND</span>
+                        <span id="freq-status" class="freq-status-tag">STATION ON AIR</span>
                     </div>
                     <div class="freq-number" id="frequency-display">462.5625 MHz</div>
                 </div>
@@ -169,9 +178,46 @@
                     </div>
                 </div>
 
-                <!-- Oscilloscope / Frequency Spectrum Visualizer -->
-                <div class="visualizer-container">
-                    <canvas id="visualizer-canvas"></canvas>
+                <!-- Multi-Mode Visualizer Header & Canvas -->
+                <div class="visualizer-wrapper">
+                    <div class="viz-header">
+                        <span class="viz-title">📡 SPECTRUM RADAR</span>
+                        <div class="viz-mode-group">
+                            <button class="viz-mode-btn active" data-mode="crt" title="CRT Phosphor Oscilloscope">CRT</button>
+                            <button class="viz-mode-btn" data-mode="neon" title="Cyberpunk Neon Equalizer">BARS</button>
+                            <button class="viz-mode-btn" data-mode="sonar" title="Orbital Sonar Radar">RADAR</button>
+                        </div>
+                    </div>
+                    <div class="visualizer-container">
+                        <canvas id="visualizer-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- Tactical Voice FX Modulator Bar -->
+                <div class="voice-modulator-strip">
+                    <div class="strip-label">🎙️ VOICE MODULATOR FX:</div>
+                    <div class="fx-cards-grid">
+                        <button class="voice-fx-card active" data-fx="none" title="Clean Flat Hi-Fi Microphone">
+                            <span class="fx-ico">🎙️</span>
+                            <span class="fx-name">Hi-Fi</span>
+                        </button>
+                        <button class="voice-fx-card" data-fx="vhf" title="Tactical Analog VHF Radio Filter & Squelch">
+                            <span class="fx-ico">📻</span>
+                            <span class="fx-name">VHF Radio</span>
+                        </button>
+                        <button class="voice-fx-card" data-fx="space" title="Apollo NASA Space Comm with Flutter">
+                            <span class="fx-ico">🚀</span>
+                            <span class="fx-name">Space Comm</span>
+                        </button>
+                        <button class="voice-fx-card" data-fx="cyborg" title="Robotic Ring Modulator Voice">
+                            <span class="fx-ico">🤖</span>
+                            <span class="fx-name">Cyborg</span>
+                        </button>
+                        <button class="voice-fx-card" data-fx="stealth" title="Spec-Ops Deep Sub-Bass Muffle">
+                            <span class="fx-ico">🥷</span>
+                            <span class="fx-name">Stealth</span>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Transmit / Receive Status LEDs -->
@@ -234,7 +280,103 @@
                 </div>
             </section>
 
-            <!-- RIGHT / TAB 3: ONLINE OPERATORS / ACTIVE PEERS RADAR -->
+            <!-- TAB 3: TACTICAL SOUNDBOARD & AUDIO CUES -->
+            <section class="soundboard-panel tab-content" id="tab-soundboard">
+                <div class="panel-section-header">
+                    <h3>⚡ Tactical Soundboard</h3>
+                    <span class="section-sub">1-Tap Real-Time Audio Broadcast</span>
+                </div>
+
+                <div class="soundboard-grid">
+                    <button class="soundboard-btn alert-theme" data-sound="red-alert" data-label="Red Alert Siren">
+                        <span class="sbd-icon">🚨</span>
+                        <span class="sbd-title">RED ALERT</span>
+                        <span class="sbd-desc">Emergency Alarm Siren</span>
+                    </button>
+                    <button class="soundboard-btn cyan-theme" data-sound="10-4" data-label="10-4 Acknowledged">
+                        <span class="sbd-icon">📡</span>
+                        <span class="sbd-title">10-4 COPY</span>
+                        <span class="sbd-desc">Dispatch Ack Chime</span>
+                    </button>
+                    <button class="soundboard-btn green-theme" data-sound="roger" data-label="Roger Quindar Beep">
+                        <span class="sbd-icon">🔊</span>
+                        <span class="sbd-title">ROGER BEEP</span>
+                        <span class="sbd-desc">NASA Quindar Tone</span>
+                    </button>
+                    <button class="soundboard-btn blue-theme" data-sound="sonar" data-label="Submarine Sonar Ping">
+                        <span class="sbd-icon">⚡</span>
+                        <span class="sbd-title">SONAR PING</span>
+                        <span class="sbd-desc">Acoustic Echo Radar</span>
+                    </button>
+                    <button class="soundboard-btn amber-theme" data-sound="squelch" data-label="Static Squelch Burst">
+                        <span class="sbd-icon">💥</span>
+                        <span class="sbd-title">SQUELCH TAIL</span>
+                        <span class="sbd-desc">Analog Radio Noise</span>
+                    </button>
+                    <button class="soundboard-btn purple-theme" data-sound="airhorn" data-label="Tactical Air Horn">
+                        <span class="sbd-icon">📣</span>
+                        <span class="sbd-title">AIR HORN</span>
+                        <span class="sbd-desc">Command Klaxon Warning</span>
+                    </button>
+                </div>
+
+                <div class="soundboard-info-box">
+                    💡 <b>Pro Tip:</b> Tapping any soundboard cue instantly triggers authentic procedural audio on your device AND transmits the cue to all connected operators on this channel!
+                </div>
+            </section>
+
+            <!-- TAB 4: INTERACTIVE MORSE CODE TELEGRAPH KEYER & DECODER -->
+            <section class="morse-panel tab-content" id="tab-morse">
+                <div class="panel-section-header">
+                    <h3>📡 Morse Telegraph & Signal Keyer</h3>
+                    <span class="section-sub">Military CW Audio Keyer & Real-Time Decoder</span>
+                </div>
+
+                <!-- Morse Telegraph Station -->
+                <div class="morse-station-card">
+                    <div class="morse-signal-bar">
+                        <div class="signal-indicator">
+                            <span id="morse-signal-led" class="morse-led"></span>
+                            <span class="signal-text">CW SIGNAL MONITOR</span>
+                        </div>
+                        <span id="morse-raw-code" class="morse-symbol-tag"></span>
+                    </div>
+
+                    <!-- Live Decoded Output Display -->
+                    <div class="morse-decoder-display">
+                        <div class="decoder-label">DECODED SIGNAL TEXT:</div>
+                        <div id="morse-decoded-text" class="decoded-output">DECODING IDLE... PRESS TELEGRAPH KEY BELOW</div>
+                    </div>
+
+                    <!-- Brass Telegraph Key Button -->
+                    <div class="telegraph-key-area">
+                        <button id="morse-key-btn" class="brass-telegraph-key" title="Press & Hold for Dash (-), Tap for Dot (.)">
+                            <div class="key-inner-knob">
+                                <span>CW KEY</span>
+                            </div>
+                        </button>
+                        <span class="key-hint">TAP for Dot [ • ] &nbsp;|&nbsp; HOLD for Dash [ ▬ ]</span>
+                    </div>
+
+                    <!-- Morse Action Controls -->
+                    <div class="morse-btn-actions">
+                        <button id="morse-clear-btn" class="btn-morse-action">🧹 Clear</button>
+                        <button id="morse-sos-btn" class="btn-morse-action sos">🆘 Emergency SOS</button>
+                        <button id="morse-broadcast-btn" class="btn-morse-action broadcast">📡 Broadcast to Channel</button>
+                    </div>
+                </div>
+
+                <!-- Text-to-Morse Auto Player -->
+                <div class="morse-auto-player">
+                    <label>🔤 Text to Morse Audio Player:</label>
+                    <div class="morse-input-row">
+                        <input type="text" id="morse-text-input" placeholder="Type text or Morse (e.g. SOS, HELLO)..." maxlength="60">
+                        <button id="morse-play-btn" class="btn-morse-play">▶ Encode & Play</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT / TAB 5: ONLINE OPERATORS / ACTIVE PEERS RADAR -->
             <section class="peers-panel tab-content" id="tab-peers">
                 <div class="peers-header">
                     <h3>👥 Operators</h3>
@@ -246,10 +388,11 @@
                 </div>
 
                 <div class="tactical-box">
-                    <strong>📡 Multi-Device & Room Guide</strong>
-                    • <b>Theme Toggle</b>: Tap the ☀️/🌙 icon to switch between Dark & Light mode.<br>
-                    • <b>Chat Rooms</b>: Switch rooms at top to talk in private squad or public HQ channels.<br>
-                    • <b>On Mobile</b>: Tap & hold TRANSMIT with haptic buzz to talk live!
+                    <strong>📡 Multi-Device & Cross-Network Guide</strong>
+                    • <b>Real-Time Sync</b>: Phones and laptops on the same Wi-Fi communicate live!<br>
+                    • <b>Instant QR Code</b>: Tap <b>📱 QR</b> in the header to connect mobile cameras.<br>
+                    • <b>Voice Modulators</b>: Select VHF Radio, NASA Space Comm, or Cyborg FX.<br>
+                    • <b>Morse Telegraph</b>: Tap the Morse tab to key authentic telegraph signals.
                 </div>
             </section>
 
@@ -266,6 +409,14 @@
                 <span class="nav-label">Live Chat</span>
                 <span class="chat-unread-dot" id="chat-unread-dot"></span>
             </button>
+            <button class="mobile-nav-item" data-tab="tab-soundboard">
+                <span class="nav-icon">⚡</span>
+                <span class="nav-label">Soundboard</span>
+            </button>
+            <button class="mobile-nav-item" data-tab="tab-morse">
+                <span class="nav-icon">📡</span>
+                <span class="nav-label">Morse</span>
+            </button>
             <button class="mobile-nav-item" data-tab="tab-peers">
                 <span class="nav-icon">👥</span>
                 <span class="nav-label">Operators</span>
@@ -273,30 +424,38 @@
         </nav>
     </div>
 
-    <!-- ================= SHARE / PHONE CONNECT MODAL ================= -->
+    <!-- ================= INSTANT QR CODE & PHONE CONNECT MODAL ================= -->
     <div id="share-modal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content qr-modal-card">
             <div class="modal-header">
-                <h2>📱 Connect Laptop & Phone</h2>
+                <h2>📱 Connect Phone via QR Code</h2>
                 <button id="close-share-btn" class="btn-close">&times;</button>
             </div>
-            <div style="padding: 10px 0; text-align: center;">
-                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
-                    Open BlueTalk on your mobile phone or another laptop to talk together:
+            <div class="qr-modal-body">
+                <p class="qr-instruction-text">
+                    Scan this QR code with your phone camera to join this walkie-talkie channel instantly:
                 </p>
-                <div style="background: var(--input-bg); padding: 14px; border-radius: 8px; border: 1px solid var(--panel-border); word-break: break-all; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); margin-bottom: 14px;" id="share-url-box">
+
+                <!-- High-Definition QR Code Canvas -->
+                <div class="qr-canvas-frame">
+                    <canvas id="qr-code-canvas"></canvas>
+                </div>
+
+                <div class="qr-url-display" id="share-url-box">
                     Loading URL...
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="copy-url-btn" class="btn-bt-scan" style="flex: 1; justify-content: center;">
-                        📋 Copy Link
+
+                <div class="qr-btn-group">
+                    <button id="copy-url-btn" class="btn-bt-scan">
+                        📋 Copy URL
                     </button>
-                    <button id="native-share-btn" class="btn-bt-scan" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #10b981, #047857);">
-                        📲 Share via Phone
+                    <button id="native-share-btn" class="btn-bt-scan btn-green">
+                        📲 Share Link
                     </button>
                 </div>
-                <div style="margin-top: 14px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
-                    💡 <b>Tip</b>: You can install BlueTalk as a standalone app on your phone by tapping <b>"Add to Home Screen"</b> in Chrome or Safari!
+
+                <div class="qr-tip-box">
+                    💡 <b>Same Wi-Fi Network</b>: Make sure your phone is connected to the same Wi-Fi or hotspot as this computer to talk live!
                 </div>
             </div>
         </div>
@@ -324,7 +483,7 @@
             <div class="setting-item">
                 <div>
                     <strong>Roger Beep Tone</strong>
-                    <p style="font-size: 11px; color: var(--text-muted);">Play Quindar tone on release</p>
+                    <p style="font-size: 11px; color: var(--text-muted);">Play NASA Quindar tone on release</p>
                 </div>
                 <input type="checkbox" id="toggle-roger-beep" checked>
             </div>
@@ -353,6 +512,8 @@
     <script src="js/bluetooth.js"></script>
     <script src="js/rooms.js"></script>
     <script src="js/peer.js"></script>
+    <script src="js/morse.js"></script>
+    <script src="js/qrcode.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>

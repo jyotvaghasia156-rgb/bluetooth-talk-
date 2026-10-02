@@ -26,8 +26,9 @@
     --bubble-in-bg: #1a2333;
     --bubble-out-bg: linear-gradient(135deg, #0d3b66, #0077b6);
     --modal-bg: #0f1626;
-    --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
-    --font-ui: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    --font-mono: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', monospace;
+    --font-ui: 'Rajdhani', 'Chakra Petch', system-ui, -apple-system, sans-serif;
+    --font-display: 'Chakra Petch', 'Rajdhani', sans-serif;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -1428,3 +1429,650 @@ body {
         text-align: center;
     }
 }
+
+/* =========================================================
+   LIVE NETWORK TELEMETRY BADGE
+   ========================================================= */
+.network-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.network-badge.online {
+    background: rgba(0, 255, 136, 0.12);
+    border: 1px solid rgba(0, 255, 136, 0.4);
+    color: var(--accent-green);
+    box-shadow: 0 0 10px rgba(0, 255, 136, 0.2);
+}
+
+.network-badge.offline {
+    background: rgba(255, 183, 3, 0.12);
+    border: 1px solid rgba(255, 183, 3, 0.4);
+    color: var(--accent-amber);
+}
+
+.network-badge .badge-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 8px currentColor;
+    animation: pulse-dot 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* =========================================================
+   MULTI-MODE SPECTRUM VISUALIZER
+   ========================================================= */
+.visualizer-wrapper {
+    background: var(--screen-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 8px 10px 10px 10px;
+    margin-bottom: 12px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.viz-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    padding: 0 2px;
+}
+
+.viz-title {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+.viz-mode-group {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    padding: 2px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.viz-mode-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.viz-mode-btn:hover {
+    color: var(--text-main);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.viz-mode-btn.active {
+    background: var(--accent-cyan);
+    color: #050b14;
+    box-shadow: 0 0 8px var(--accent-cyan-glow);
+}
+
+/* =========================================================
+   VOICE MODULATOR FX STRIP
+   ========================================================= */
+.voice-modulator-strip {
+    background: var(--card-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    margin-bottom: 12px;
+}
+
+.strip-label {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+
+.fx-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+}
+
+.voice-fx-card {
+    background: var(--input-bg);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 6px 2px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.voice-fx-card .fx-ico {
+    font-size: 14px;
+}
+
+.voice-fx-card .fx-name {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.1;
+}
+
+.voice-fx-card:hover {
+    border-color: var(--accent-cyan);
+    transform: translateY(-1px);
+}
+
+.voice-fx-card.active {
+    background: rgba(0, 255, 204, 0.12);
+    border-color: var(--accent-cyan);
+    box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.voice-fx-card.active .fx-name {
+    color: var(--accent-cyan);
+}
+
+/* =========================================================
+   TACTICAL SOUNDBOARD PANEL
+   ========================================================= */
+.soundboard-panel {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--panel-bg);
+}
+
+.panel-section-header {
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 8px;
+}
+
+.panel-section-header h3 {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.section-sub {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.soundboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.soundboard-btn {
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 16px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.soundboard-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: currentColor;
+    opacity: 0.8;
+}
+
+.soundboard-btn .sbd-icon {
+    font-size: 28px;
+    margin-bottom: 8px;
+    transition: transform 0.2s ease;
+}
+
+.soundboard-btn .sbd-title {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+
+.soundboard-btn .sbd-desc {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: var(--text-muted);
+}
+
+.soundboard-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+}
+
+.soundboard-btn:active {
+    transform: translateY(1px) scale(0.98);
+}
+
+/* Theme variations for soundboard */
+.soundboard-btn.alert-theme {
+    color: #ff3366;
+    border-color: rgba(255, 51, 102, 0.35);
+}
+.soundboard-btn.alert-theme:hover {
+    background: rgba(255, 51, 102, 0.12);
+    box-shadow: 0 0 16px rgba(255, 51, 102, 0.4);
+}
+
+.soundboard-btn.cyan-theme {
+    color: #00f3ff;
+    border-color: rgba(0, 243, 255, 0.35);
+}
+.soundboard-btn.cyan-theme:hover {
+    background: rgba(0, 243, 255, 0.12);
+    box-shadow: 0 0 16px rgba(0, 243, 255, 0.4);
+}
+
+.soundboard-btn.green-theme {
+    color: #00ff88;
+    border-color: rgba(0, 255, 136, 0.35);
+}
+.soundboard-btn.green-theme:hover {
+    background: rgba(0, 255, 136, 0.12);
+    box-shadow: 0 0 16px rgba(0, 255, 136, 0.4);
+}
+
+.soundboard-btn.blue-theme {
+    color: #3b82f6;
+    border-color: rgba(59, 130, 246, 0.35);
+}
+.soundboard-btn.blue-theme:hover {
+    background: rgba(59, 130, 246, 0.12);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.4);
+}
+
+.soundboard-btn.amber-theme {
+    color: #ffb703;
+    border-color: rgba(255, 183, 3, 0.35);
+}
+.soundboard-btn.amber-theme:hover {
+    background: rgba(255, 183, 3, 0.12);
+    box-shadow: 0 0 16px rgba(255, 183, 3, 0.4);
+}
+
+.soundboard-btn.purple-theme {
+    color: #c084fc;
+    border-color: rgba(192, 132, 252, 0.35);
+}
+.soundboard-btn.purple-theme:hover {
+    background: rgba(192, 132, 252, 0.12);
+    box-shadow: 0 0 16px rgba(192, 132, 252, 0.4);
+}
+
+.soundboard-info-box {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px dashed var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* =========================================================
+   MORSE CODE TELEGRAPH KEYER & DECODER PANEL
+   ========================================================= */
+.morse-panel {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--panel-bg);
+}
+
+.morse-station-card {
+    background: var(--card-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+
+.morse-signal-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.signal-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.morse-led {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #1a2333;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.05s ease;
+}
+
+.morse-led.active {
+    background: #00ff88;
+    box-shadow: 0 0 16px #00ff88, 0 0 30px #00ff88;
+    border-color: #ffffff;
+}
+
+.signal-text {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.morse-symbol-tag {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+}
+
+.morse-decoder-display {
+    background: var(--screen-bg);
+    border: 1px solid rgba(0, 255, 204, 0.2);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+}
+
+.decoder-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+
+.decoded-output {
+    font-family: var(--font-mono);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--accent-cyan);
+    min-height: 24px;
+    letter-spacing: 1px;
+    word-break: break-all;
+}
+
+/* Authentic Brass Telegraph Key Pad */
+.telegraph-key-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 8px 0 16px 0;
+}
+
+.brass-telegraph-key {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #ffd166 0%, #d4a373 40%, #8b5a2b 85%, #4a2810 100%);
+    border: 5px solid #2b1704;
+    box-shadow: 
+        0 8px 24px rgba(0, 0, 0, 0.7),
+        inset 0 4px 10px rgba(255, 255, 255, 0.4),
+        inset 0 -6px 12px rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.08s ease;
+}
+
+.brass-telegraph-key .key-inner-knob {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #2b1704 0%, #150a02 100%);
+    border: 3px solid #ffd166;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #ffd166;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.8);
+}
+
+.brass-telegraph-key:active,
+.brass-telegraph-key.active {
+    transform: scale(0.95) translateY(4px);
+    box-shadow: 
+        0 2px 10px rgba(0, 0, 0, 0.9),
+        0 0 20px rgba(255, 209, 102, 0.5);
+}
+
+.key-hint {
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.morse-btn-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1.4fr;
+    gap: 8px;
+}
+
+.btn-morse-action {
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-family: var(--font-ui);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-main);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-morse-action:hover {
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.btn-morse-action.sos {
+    border-color: rgba(255, 51, 102, 0.5);
+    color: #ff3366;
+}
+
+.btn-morse-action.sos.active {
+    background: #ff3366;
+    color: #ffffff;
+    box-shadow: 0 0 16px rgba(255, 51, 102, 0.8);
+    animation: pulse-sos 1s infinite alternate;
+}
+
+@keyframes pulse-sos {
+    from { transform: scale(1); }
+    to { transform: scale(1.03); }
+}
+
+.btn-morse-action.broadcast {
+    background: linear-gradient(135deg, rgba(0, 243, 255, 0.2), rgba(0, 255, 136, 0.2));
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+}
+
+.morse-auto-player {
+    background: var(--card-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.morse-auto-player label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.morse-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.morse-input-row input {
+    flex: 1;
+    background: var(--input-bg);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-main);
+}
+
+.btn-morse-play {
+    background: var(--accent-cyan);
+    color: #050b14;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 12.5px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-morse-play:hover {
+    box-shadow: 0 0 12px var(--accent-cyan-glow);
+}
+
+/* =========================================================
+   INSTANT ON-SCREEN QR CODE MODAL
+   ========================================================= */
+.qr-modal-card {
+    max-width: 380px !important;
+    text-align: center;
+}
+
+.qr-modal-body {
+    padding: 8px 0;
+}
+
+.qr-instruction-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+    line-height: 1.4;
+}
+
+.qr-canvas-frame {
+    display: inline-block;
+    padding: 10px;
+    background: #090e18;
+    border: 2px solid var(--accent-cyan);
+    border-radius: 12px;
+    box-shadow: 0 0 24px var(--accent-cyan-glow);
+    margin-bottom: 14px;
+}
+
+#qr-code-canvas {
+    display: block;
+    border-radius: 6px;
+}
+
+.qr-url-display {
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent-cyan);
+    word-break: break-all;
+    margin-bottom: 14px;
+}
+
+.qr-btn-group {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.qr-tip-box {
+    background: rgba(0, 255, 136, 0.08);
+    border: 1px solid rgba(0, 255, 136, 0.25);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 11.5px;
+    color: var(--text-muted);
+    text-align: left;
+    line-height: 1.4;
+}
+
+.qr-pulse-btn {
+    animation: qr-glow 2s infinite alternate ease-in-out;
+}
+
+@keyframes qr-glow {
+    0% { box-shadow: 0 0 0px transparent; }
+    100% { box-shadow: 0 0 10px var(--accent-cyan-glow); }
+}
+

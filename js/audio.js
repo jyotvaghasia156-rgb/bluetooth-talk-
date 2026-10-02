@@ -1,7 +1,7 @@
 /**
- * BlueTalk - Audio & Walkie-Talkie Voice Engine (Overhauled & Bug-Fixed)
- * Handles robust microphone capture, cross-browser voice memo recording,
- * live timer tracking, audio format compatibility, and seamless live PTT stream playback.
+ * BlueTalk Pro - Audio Engine & Real-Time DSP Voice Modulator
+ * Supports live Push-to-Talk (PTT), Voice Note memos, procedural sound FX integration,
+ * and Tactical Voice Modulators (VHF Radio, NASA Space Comm, Cyborg Robot, Deep Stealth).
  */
 
 class AudioEngine {
@@ -9,14 +9,21 @@ class AudioEngine {
         this.audioCtx = null;
         this.micStream = null;
         this.sourceNode = null;
-        this.analyserNode = null;
         this.gainNode = null;
+        this.analyserNode = null;
 
+        // DSP Graph & Stream Destination
+        this.dspDestination = null;
+        this.activeDspNodes = [];
+        this.voiceFxPreset = 'none'; // 'none' | 'vhf' | 'space' | 'cyborg' | 'stealth'
+
+        // PTT State
         this.isTransmitting = false;
         this.mediaRecorder = null;
         this.recordedChunks = [];
-        this.onVoiceChunk = null; // Callback: (blob, isFinal) => void
+        this.onVoiceChunk = null;
 
+        // Voice Note State
         this.voiceNoteRecorder = null;
         this.voiceNoteChunks = [];
         this.isRecordingVoiceNote = false;
@@ -32,7 +39,7 @@ class AudioEngine {
         this.frequencyData = new Uint8Array(128);
         this.timeDomainData = new Uint8Array(128);
 
-        // Live Voice Stream Playback Queue (avoids overlapping audio drops)
+        // Playback Queue
         this.playbackQueue = [];
         this.isPlayingQueue = false;
     }
@@ -64,14 +71,14 @@ class AudioEngine {
             try {
                 await this.audioCtx.resume();
             } catch (e) {
-                console.warn('AudioContext resume error:', e);
+                console.warn('AudioContext resume note:', e);
             }
         }
         return this.audioCtx;
     }
 
     async initMic() {
-        if (this.micStream && this.micStream.active) return true;
+        if (this.micStream && this.micStream.active && this.sourceNode) return true;
 
         try {
             await this.ensureAudioContext();
@@ -96,9 +103,13 @@ class AudioEngine {
             this.frequencyData = new Uint8Array(this.analyserNode.frequencyBinCount);
             this.timeDomainData = new Uint8Array(this.analyserNode.fftSize);
 
-            // Connect graph: Mic -> Gain -> Analyser (do not connect to destination to avoid local feedback)
+            this.dspDestination = this.audioCtx.createMediaStreamDestination();
+
+            // Connect Base Graph: Mic -> Gain -> Analyser -> Rebuild DSP -> Destination
             this.sourceNode.connect(this.gainNode);
             this.gainNode.connect(this.analyserNode);
+
+            this.applyVoiceFx(this.voiceFxPreset);
 
             return true;
         } catch (err) {
@@ -112,6 +123,155 @@ class AudioEngine {
         if (this.gainNode) {
             this.gainNode.gain.value = this.micGain;
         }
+    }
+
+    /**
+     * Select & Wire Real-Time Voice Modulator DSP FX
+     * @param {'none' | 'vhf' | 'space' | 'cyborg' | 'stealth'} preset
+     */
+    applyVoiceFx(preset) {
+        this.voiceFxPreset = preset || 'none';
+        if (!this.audioCtx || !this.gainNode || !this.dspDestination) return;
+
+        // Disconnect old DSP chain
+        try {
+            this.gainNode.disconnect(this.dspDestination);
+        } catch (e) {}
+
+        this.activeDspNodes.forEach(node => {
+            try {
+                if (node.stop) node.stop();
+                node.disconnect();
+            } catch (e) {}
+        });
+        this.activeDspNodes = [];
+
+        const ctx = this.audioCtx;
+
+        if (this.voiceFxPreset === 'none') {
+            // Clean direct passthrough
+            this.gainNode.connect(this.dspDestination);
+            return;
+        }
+
+        if (this.voiceFxPreset === 'vhf') {
+            // Tactical VHF Walkie-Talkie (300Hz-3.2kHz bandpass + distortion + presence peak)
+            const lowCut = ctx.createBiquadFilter();
+            lowCut.type = 'highpass';
+            lowCut.frequency.value = 380;
+
+            const highCut = ctx.createBiquadFilter();
+            highCut.type = 'lowpass';
+            highCut.frequency.value = 3200;
+
+            const midPeak = ctx.createBiquadFilter();
+            midPeak.type = 'peaking';
+            midPeak.frequency.value = 1750;
+            midPeak.gain.value = 5.0;
+
+            // Subtle waveshaper saturation for analog radio crunch
+            const distortion = ctx.createWaveShaper();
+            distortion.curve = this.makeDistortionCurve(20);
+            distortion.oversample = '2x';
+
+            this.gainNode.connect(lowCut);
+            lowCut.connect(highCut);
+            highCut.connect(midPeak);
+            midPeak.connect(distortion);
+            distortion.connect(this.dspDestination);
+
+            this.activeDspNodes.push(lowCut, highCut, midPeak, distortion);
+            return;
+        }
+
+        if (this.voiceFxPreset === 'space') {
+            // Apollo NASA Space Comm (600Hz highpass, 2.2kHz bandpass, fluttering amplitude)
+            const hp = ctx.createBiquadFilter();
+            hp.type = 'highpass';
+            hp.frequency.value = 650;
+
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = 2100;
+            bp.Q.value = 2.2;
+
+            const amGain = ctx.createGain();
+            const amOsc = ctx.createOscillator();
+            amOsc.type = 'sine';
+            amOsc.frequency.value = 14; // 14Hz flutter
+            amOsc.connect(amGain.gain);
+            amOsc.start();
+
+            this.gainNode.connect(hp);
+            hp.connect(bp);
+            bp.connect(amGain);
+            amGain.connect(this.dspDestination);
+
+            this.activeDspNodes.push(hp, bp, amGain, amOsc);
+            return;
+        }
+
+        if (this.voiceFxPreset === 'cyborg') {
+            // Robotic Ring Modulator (62Hz carrier multiplication)
+            const ringModGain = ctx.createGain();
+            ringModGain.gain.value = 0;
+
+            const carrier = ctx.createOscillator();
+            carrier.type = 'sawtooth';
+            carrier.frequency.value = 62; // Robotic fundamental tone
+            carrier.connect(ringModGain.gain);
+            carrier.start();
+
+            const dryGain = ctx.createGain();
+            dryGain.gain.value = 0.35;
+
+            this.gainNode.connect(ringModGain);
+            this.gainNode.connect(dryGain);
+            ringModGain.connect(this.dspDestination);
+            dryGain.connect(this.dspDestination);
+
+            this.activeDspNodes.push(ringModGain, carrier, dryGain);
+            return;
+        }
+
+        if (this.voiceFxPreset === 'stealth') {
+            // Deep Spec-Ops Stealth (sub-bass boost + low-pass dark muffling)
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = 1600;
+
+            const bassBoost = ctx.createBiquadFilter();
+            bassBoost.type = 'peaking';
+            bassBoost.frequency.value = 110;
+            bassBoost.gain.value = 9.0;
+
+            const comp = ctx.createDynamicsCompressor();
+            comp.threshold.value = -24;
+            comp.knee.value = 20;
+            comp.ratio.value = 8;
+
+            this.gainNode.connect(bassBoost);
+            bassBoost.connect(lp);
+            lp.connect(comp);
+            comp.connect(this.dspDestination);
+
+            this.activeDspNodes.push(bassBoost, lp, comp);
+            return;
+        }
+
+        this.gainNode.connect(this.dspDestination);
+    }
+
+    makeDistortionCurve(amount = 20) {
+        const k = typeof amount === 'number' ? amount : 20;
+        const n_samples = 44100;
+        const curve = new Float32Array(n_samples);
+        const deg = Math.PI / 180;
+        for (let i = 0; i < n_samples; ++i) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = ((3 + k) * x * 20 * deg) / (Math.PI + k * Math.abs(x));
+        }
+        return curve;
     }
 
     /**
@@ -134,9 +294,11 @@ class AudioEngine {
 
         try {
             const mimeType = this.getBestMimeType();
-            const options = mimeType ? { mimeType: mimeType, audioBitsPerSecond: 24000 } : {};
+            const options = mimeType ? { mimeType: mimeType, audioBitsPerSecond: 28000 } : {};
 
-            this.mediaRecorder = new MediaRecorder(this.micStream, options);
+            // Record from the DSP-processed destination stream!
+            const recordingStream = this.dspDestination ? this.dspDestination.stream : this.micStream;
+            this.mediaRecorder = new MediaRecorder(recordingStream, options);
 
             this.mediaRecorder.ondataavailable = (event) => {
                 if (event.data && event.data.size > 0) {
@@ -147,8 +309,7 @@ class AudioEngine {
                 }
             };
 
-            // Stream chunk every 300ms for stable low-latency transmission
-            this.mediaRecorder.start(300);
+            this.mediaRecorder.start(280);
         } catch (e) {
             console.error('Error starting MediaRecorder for PTT:', e);
             this.isTransmitting = false;
@@ -158,64 +319,79 @@ class AudioEngine {
     /**
      * Stop Push-to-Talk (PTT) transmission and send Roger beep
      */
-    stopPTT() {
-        if (!this.isTransmitting) return;
+    async stopPTT() {
+        if (!this.isTransmitting) return null;
         this.isTransmitting = false;
 
-        if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        return new Promise((resolve) => {
+            if (!this.mediaRecorder || this.mediaRecorder.state === 'inactive') {
+                window.sfx.playRogerBeep();
+                resolve(null);
+                return;
+            }
+
             this.mediaRecorder.onstop = () => {
                 const mime = this.mediaRecorder.mimeType || 'audio/webm';
-                const fullBlob = new Blob(this.recordedChunks, { type: mime });
+                const blob = new Blob(this.recordedChunks, { type: mime });
+
                 if (this.onVoiceChunk) {
-                    this.onVoiceChunk(fullBlob, true); // Final chunk indicator
+                    this.onVoiceChunk(blob, true);
                 }
+
+                window.sfx.playRogerBeep();
+                resolve(blob);
             };
+
             try {
                 this.mediaRecorder.stop();
             } catch (e) {
-                console.warn('Error stopping MediaRecorder:', e);
+                window.sfx.playRogerBeep();
+                resolve(null);
             }
-        }
-
-        window.sfx.playRogerBeep();
+        });
     }
 
     /**
-     * Start recording an Audio Note (Voice Message) with live timer callback
+     * Start Voice Note Recording
      */
-    async startVoiceNote(onTickTimer) {
+    async startVoiceNote(timerUpdateCallback) {
+        if (this.isRecordingVoiceNote) return;
+
         const micReady = await this.initMic();
-        if (!micReady) throw new Error('Microphone permission required.');
+        if (!micReady) throw new Error('Microphone permission required for Voice Notes.');
 
         await this.ensureAudioContext();
         window.sfx.playMicClickIn();
 
-        this.voiceNoteChunks = [];
         this.isRecordingVoiceNote = true;
+        this.voiceNoteChunks = [];
         this.voiceNoteStartTime = Date.now();
 
-        const mimeType = this.getBestMimeType();
-        const options = mimeType ? { mimeType } : {};
+        if (this.voiceNoteTimerInterval) clearInterval(this.voiceNoteTimerInterval);
+        this.voiceNoteTimerInterval = setInterval(() => {
+            if (timerUpdateCallback && this.isRecordingVoiceNote) {
+                const elapsedSec = Math.floor((Date.now() - this.voiceNoteStartTime) / 1000);
+                timerUpdateCallback(elapsedSec);
+            }
+        }, 1000);
 
-        this.voiceNoteRecorder = new MediaRecorder(this.micStream, options);
+        const mime = this.getBestMimeType();
+        const options = mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : {};
+
+        const recordingStream = this.dspDestination ? this.dspDestination.stream : this.micStream;
+        this.voiceNoteRecorder = new MediaRecorder(recordingStream, options);
+
         this.voiceNoteRecorder.ondataavailable = (e) => {
             if (e.data && e.data.size > 0) {
                 this.voiceNoteChunks.push(e.data);
             }
         };
 
-        this.voiceNoteRecorder.start(100);
-
-        if (onTickTimer) {
-            this.voiceNoteTimerInterval = setInterval(() => {
-                const elapsedSec = Math.floor((Date.now() - this.voiceNoteStartTime) / 1000);
-                onTickTimer(elapsedSec);
-            }, 500);
-        }
+        this.voiceNoteRecorder.start(200);
     }
 
     /**
-     * Stop Voice Note recording and return Blob + Duration
+     * Stop Voice Note Recording
      */
     async stopVoiceNote() {
         if (this.voiceNoteTimerInterval) {
@@ -271,7 +447,6 @@ class AudioEngine {
             await this.ensureAudioContext();
             const arrayBuffer = await item.blob.arrayBuffer();
 
-            // Decode audio safely
             this.audioCtx.decodeAudioData(arrayBuffer, (decodedBuffer) => {
                 const source = this.audioCtx.createBufferSource();
                 source.buffer = decodedBuffer;
@@ -285,15 +460,9 @@ class AudioEngine {
                     highCut.type = 'lowpass';
                     highCut.frequency.value = 3400;
 
-                    const radioPeak = this.audioCtx.createBiquadFilter();
-                    radioPeak.type = 'peaking';
-                    radioPeak.frequency.value = 1800;
-                    radioPeak.gain.value = 3.5;
-
                     source.connect(lowCut);
                     lowCut.connect(highCut);
-                    highCut.connect(radioPeak);
-                    radioPeak.connect(this.audioCtx.destination);
+                    highCut.connect(this.audioCtx.destination);
                 } else {
                     source.connect(this.audioCtx.destination);
                 }
@@ -305,8 +474,7 @@ class AudioEngine {
                     }
                     this.processPlaybackQueue();
                 };
-            }, (decodeErr) => {
-                // Fallback to HTML5 Audio element
+            }, () => {
                 this.fallbackPlayBlob(item.blob, () => this.processPlaybackQueue());
             });
         } catch (err) {
@@ -326,7 +494,7 @@ class AudioEngine {
                 URL.revokeObjectURL(url);
                 if (onEnd) onEnd();
             };
-            audio.play().catch(e => {
+            audio.play().catch(() => {
                 if (onEnd) onEnd();
             });
         } catch (e) {
@@ -334,27 +502,15 @@ class AudioEngine {
         }
     }
 
-    /**
-     * Read current visualizer audio level and waveform
-     */
     getVisualizerData() {
         if (!this.analyserNode) {
-            return { frequencyData: null, timeDomainData: null, volumeLevel: 0 };
+            return { frequencyData: null, timeDomainData: null };
         }
-
         this.analyserNode.getByteFrequencyData(this.frequencyData);
         this.analyserNode.getByteTimeDomainData(this.timeDomainData);
-
-        let sum = 0;
-        for (let i = 0; i < this.frequencyData.length; i++) {
-            sum += this.frequencyData[i];
-        }
-        const volumeLevel = sum / (this.frequencyData.length * 255);
-
         return {
             frequencyData: this.frequencyData,
-            timeDomainData: this.timeDomainData,
-            volumeLevel: volumeLevel
+            timeDomainData: this.timeDomainData
         };
     }
 }

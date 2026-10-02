@@ -32,7 +32,7 @@ git remote add origin https://github.com/jyotvaghasia156-rgb/bluetooth-talk-.git
 echo [*] Pushing to main branch on GitHub...
 echo (If prompted, please enter your GitHub credentials or Personal Access Token)
 echo.
-git push -u origin main
+git push -u origin main --force
 
 echo.
 echo ==========================================================

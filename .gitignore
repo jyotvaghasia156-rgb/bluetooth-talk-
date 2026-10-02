@@ -1,0 +1,7 @@
+# Dependencies & OS files
+.DS_Store
+Thumbs.db
+*.log
+.system_generated/
+scratch/
+*.tmp

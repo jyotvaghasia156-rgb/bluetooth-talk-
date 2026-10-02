@@ -1,0 +1,17 @@
+{
+  "name": "BlueTalk Pro - Bluetooth Walkie-Talkie",
+  "short_name": "BlueTalk",
+  "description": "Real-time Bluetooth & Wireless Walkie-Talkie & Live Chat Communicator",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0d14",
+  "theme_color": "#00ffcc",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

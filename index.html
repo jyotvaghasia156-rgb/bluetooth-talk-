@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0d14">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BlueTalk">
+    <meta name="description" content="Real-time Bluetooth & Wireless Walkie-Talkie and Live Chat for Laptops and Phones">
+    <link rel="manifest" href="manifest.json">
+    <title>BlueTalk Pro - Bluetooth Walkie-Talkie & Live Communicator</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <!-- ================= OPERATOR LOGIN / CLEARANCE SCREEN ================= -->
+    <div id="login-overlay" class="login-overlay-screen">
+        <div class="login-card">
+            <div class="login-header">
+                <div class="login-logo-glow">📻</div>
+                <h2>BLUETALK <span>OPERATOR LOGIN</span></h2>
+                <p>Tactical Bluetooth & Wireless Comm Clearance</p>
+            </div>
+
+            <!-- Google Account Sign-In Button -->
+            <button type="button" id="btn-google-login" class="btn-google-auth">
+                <svg class="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                </svg>
+                <span>Continue with Google Account</span>
+            </button>
+
+            <div class="login-divider">
+                <span>OR SIGN IN AS TACTICAL OPERATOR</span>
+            </div>
+
+            <form id="operator-login-form">
+                <!-- Avatar / Emblem Picker -->
+                <div class="login-group">
+                    <label>Choose Tactical Emblem</label>
+                    <div class="avatar-picker" id="avatar-picker">
+                        <!-- Populated by auth.js -->
+                    </div>
+                </div>
+
+                <!-- Callsign Input -->
+                <div class="login-group">
+                    <label for="login-callsign-input">Operator Callsign / Name</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="login-callsign-input" maxlength="12" placeholder="e.g. VIPER-07" required autocomplete="off">
+                        <button type="button" id="btn-randomize-callsign" class="btn-rnd" title="Generate Random Callsign">🎲 Random</button>
+                    </div>
+                </div>
+
+                <!-- Frequency Channel Selection -->
+                <div class="login-group">
+                    <label for="login-channel-select">Initial Radio Channel</label>
+                    <select id="login-channel-select">
+                        <option value="1">CH 01 (462.5625 MHz) - Primary Operations</option>
+                        <option value="2">CH 02 (462.5875 MHz) - Squad Alpha</option>
+                        <option value="3">CH 03 (462.6125 MHz) - Squad Bravo</option>
+                        <option value="4">CH 04 (462.6375 MHz) - Squad Charlie</option>
+                        <option value="5">CH 05 (462.6625 MHz) - Secure Command</option>
+                        <option value="6">CH 06 (462.6875 MHz) - Tactical Logistics</option>
+                        <option value="7">CH 07 (462.7125 MHz) - Reconnaissance</option>
+                        <option value="8">CH 08 (467.5625 MHz) - Open Frequency</option>
+                    </select>
+                </div>
+
+                <!-- Security / Link Notice -->
+                <div class="login-security-notice">
+                    <span>🔒 AES-256 Bit Wireless Link</span>
+                    <span>• Web Bluetooth & Multi-Room</span>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-auth-enter">
+                    <span>⚡ ENTER COMM NETWORK</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= MAIN APP WORKSPACE ================= -->
+    <div class="app-container">
+        <!-- ================= TOP HEADER BAR ================= -->
+        <header class="top-header">
+            <div class="brand-section">
+                <div class="brand-logo">📻</div>
+                <div class="brand-info">
+                    <h1>BLUETALK <span>PRO</span></h1>
+                    <span class="tagline">BLUETOOTH & WIRELESS LIVE COMMUNICATOR</span>
+                </div>
+            </div>
+
+            <div class="header-status-group">
+                <!-- User Profile Badge -->
+                <button id="user-profile-btn" class="user-profile-pill" title="Click to Switch Operator / Logout">
+                    <span id="user-avatar-badge">🦅</span>
+                    <span id="user-header-callsign" class="user-header-name">OPERATOR</span>
+                </button>
+
+                <span id="connection-status-pill" class="status-pill disconnected">STANDALONE</span>
+                <span id="connected-device-name" class="device-name-text">No BT Device</span>
+                
+                <button id="bt-scan-btn" class="btn-bt-scan" title="Scan & Pair Bluetooth Device">
+                    <span>📶</span> <span class="btn-text">Scan BT</span>
+                </button>
+                <button id="bt-disconnect-btn" class="btn-bt-disconnect" style="display: none;">
+                    Disconnect
+                </button>
+
+                <!-- Dark / Light Theme Toggle -->
+                <button id="theme-toggle-btn" class="btn-icon" title="Toggle Dark / Light Mode">☀️</button>
+                
+                <!-- Share Phone / Connect Button -->
+                <button id="share-phone-btn" class="btn-icon" title="Connect Phone / Share Link">📱</button>
+                
+                <!-- Settings Button -->
+                <button id="settings-btn" class="btn-icon" title="Audio & Radio Settings">⚙️</button>
+            </div>
+        </header>
+
+        <!-- ================= MAIN THREE-COLUMN / MOBILE WORKSPACE ================= -->
+        <div class="main-body">
+
+            <!-- LEFT / TAB 1: TACTICAL RADIO TRANSMITTER & PTT -->
+            <section class="radio-panel tab-content active" id="tab-radio">
+                <!-- Frequency Display Screen -->
+                <div class="frequency-card">
+                    <div class="freq-meta">
+                        <span>FREQ / UHF</span>
+                        <span id="freq-status">STATION READY</span>
+                    </div>
+                    <div class="freq-number" id="frequency-display">462.5625 MHz</div>
+                </div>
+
+                <!-- Channel & Callsign Settings -->
+                <div class="channel-row">
+                    <div class="control-box">
+                        <label for="channel-select">Channel (CH)</label>
+                        <select id="channel-select">
+                            <option value="1">CH 01 (462.5625)</option>
+                            <option value="2">CH 02 (462.5875)</option>
+                            <option value="3">CH 03 (462.6125)</option>
+                            <option value="4">CH 04 (462.6375)</option>
+                            <option value="5">CH 05 (462.6625)</option>
+                            <option value="6">CH 06 (462.6875)</option>
+                            <option value="7">CH 07 (462.7125)</option>
+                            <option value="8">CH 08 (467.5625)</option>
+                            <option value="9">CH 09 (467.5875)</option>
+                            <option value="10">CH 10 (467.6125)</option>
+                            <option value="11">CH 11 (467.6375)</option>
+                            <option value="12">CH 12 (467.6625)</option>
+                            <option value="13">CH 13 (467.6875)</option>
+                            <option value="14">CH 14 (467.7125)</option>
+                            <option value="15">CH 15 (462.5500)</option>
+                            <option value="16">CH 16 (462.7250)</option>
+                        </select>
+                    </div>
+
+                    <div class="control-box">
+                        <label for="callsign-input">Callsign</label>
+                        <input type="text" id="callsign-input" maxlength="12" placeholder="EAGLE-01">
+                    </div>
+                </div>
+
+                <!-- Oscilloscope / Frequency Spectrum Visualizer -->
+                <div class="visualizer-container">
+                    <canvas id="visualizer-canvas"></canvas>
+                </div>
+
+                <!-- Transmit / Receive Status LEDs -->
+                <div class="led-indicators">
+                    <div class="led-group">
+                        <span id="tx-led" class="led-dot tx"></span>
+                        <span>TX (ON AIR)</span>
+                    </div>
+                    <div class="led-group">
+                        <span id="rx-led" class="led-dot rx"></span>
+                        <span>RX (INCOMING)</span>
+                    </div>
+                </div>
+
+                <!-- PTT TRANSMIT BUTTON -->
+                <div class="ptt-section">
+                    <button id="ptt-button" class="ptt-main-button" title="Click & Hold to Transmit Voice">
+                        <span class="ptt-icon">🎙️</span>
+                        <span class="ptt-label">TRANSMIT</span>
+                    </button>
+                    <span id="ptt-status-text" class="ptt-status-text">HOLD TO TALK (SPACEBAR)</span>
+                </div>
+            </section>
+
+            <!-- CENTER / TAB 2: LIVE CHAT ROOMS & AUDIO NOTES -->
+            <section class="chat-panel tab-content" id="tab-chat">
+                <div class="chat-header">
+                    <div class="room-selector-group">
+                        <span class="room-label">ROOM:</span>
+                        <select id="chat-room-select" class="chat-room-dropdown">
+                            <!-- Populated dynamically by rooms.js -->
+                        </select>
+                    </div>
+                    <span id="current-room-badge" class="current-room-tag">🌐 General HQ</span>
+                </div>
+
+                <!-- Message Feed -->
+                <div class="chat-messages" id="chat-messages">
+                    <!-- Messages dynamically inserted here -->
+                </div>
+
+                <!-- Quick Tactical Callout Bar -->
+                <div class="quick-callouts-bar">
+                    <button class="callout-btn" data-phrase="ROGER THAT" data-meaning="Message received and understood">📢 Roger That</button>
+                    <button class="callout-btn" data-phrase="10-4 COPY" data-meaning="Acknowledgment / Message copied">👍 10-4 Copy</button>
+                    <button class="callout-btn" data-phrase="AFFIRMATIVE" data-meaning="Yes / Confirmed">✅ Affirmative</button>
+                    <button class="callout-btn" data-phrase="NEGATIVE" data-meaning="No / Denied">❌ Negative</button>
+                    <button class="callout-btn" data-phrase="STAND BY" data-meaning="Wait, busy transmitting">⏳ Stand By</button>
+                    <button class="callout-btn" data-phrase="OVER & OUT" data-meaning="Transmission ended">🛑 Over & Out</button>
+                    <button class="callout-btn" data-phrase="MAYDAY / SOS" data-meaning="Emergency assistance needed">🚨 MAYDAY</button>
+                </div>
+
+                <!-- Input Controls -->
+                <div class="chat-input-area">
+                    <button id="record-voicenote-btn" class="btn-voicenote" title="Record an audio message">
+                        🎤 <span class="vn-text">Voice Note</span>
+                    </button>
+                    <input type="text" id="message-input" placeholder="Type message or press Spacebar to talk..." autocomplete="off">
+                    <button id="send-btn" class="btn-send">Send</button>
+                </div>
+            </section>
+
+            <!-- RIGHT / TAB 3: ONLINE OPERATORS / ACTIVE PEERS RADAR -->
+            <section class="peers-panel tab-content" id="tab-peers">
+                <div class="peers-header">
+                    <h3>👥 Operators</h3>
+                    <span id="peer-count-badge" class="peer-badge">1 Online</span>
+                </div>
+
+                <div class="peer-list" id="peer-list">
+                    <!-- Peer items populated dynamically -->
+                </div>
+
+                <div class="tactical-box">
+                    <strong>📡 Multi-Device & Room Guide</strong>
+                    • <b>Theme Toggle</b>: Tap the ☀️/🌙 icon to switch between Dark & Light mode.<br>
+                    • <b>Chat Rooms</b>: Switch rooms at top to talk in private squad or public HQ channels.<br>
+                    • <b>On Mobile</b>: Tap & hold TRANSMIT with haptic buzz to talk live!
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ================= MOBILE BOTTOM NAVIGATION BAR ================= -->
+        <nav class="mobile-nav-bar" id="mobile-nav-bar">
+            <button class="mobile-nav-item active" data-tab="tab-radio">
+                <span class="nav-icon">📻</span>
+                <span class="nav-label">Radio & PTT</span>
+            </button>
+            <button class="mobile-nav-item" data-tab="tab-chat">
+                <span class="nav-icon">💬</span>
+                <span class="nav-label">Live Chat</span>
+                <span class="chat-unread-dot" id="chat-unread-dot"></span>
+            </button>
+            <button class="mobile-nav-item" data-tab="tab-peers">
+                <span class="nav-icon">👥</span>
+                <span class="nav-label">Operators</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- ================= SHARE / PHONE CONNECT MODAL ================= -->
+    <div id="share-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📱 Connect Laptop & Phone</h2>
+                <button id="close-share-btn" class="btn-close">&times;</button>
+            </div>
+            <div style="padding: 10px 0; text-align: center;">
+                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">
+                    Open BlueTalk on your mobile phone or another laptop to talk together:
+                </p>
+                <div style="background: var(--input-bg); padding: 14px; border-radius: 8px; border: 1px solid var(--panel-border); word-break: break-all; font-family: var(--font-mono); font-size: 12px; color: var(--accent-cyan); margin-bottom: 14px;" id="share-url-box">
+                    Loading URL...
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button id="copy-url-btn" class="btn-bt-scan" style="flex: 1; justify-content: center;">
+                        📋 Copy Link
+                    </button>
+                    <button id="native-share-btn" class="btn-bt-scan" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #10b981, #047857);">
+                        📲 Share via Phone
+                    </button>
+                </div>
+                <div style="margin-top: 14px; font-size: 11px; color: var(--text-muted); line-height: 1.4;">
+                    💡 <b>Tip</b>: You can install BlueTalk as a standalone app on your phone by tapping <b>"Add to Home Screen"</b> in Chrome or Safari!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= AUDIO & SETTINGS MODAL ================= -->
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📻 Radio & Audio Settings</h2>
+                <button id="close-settings-btn" class="btn-close">&times;</button>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <strong>Microphone Gain</strong>
+                    <p style="font-size: 11px; color: var(--text-muted);">Adjust input sensitivity level</p>
+                </div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <input type="range" id="mic-gain-slider" min="0.2" max="2.5" step="0.1" value="1.0">
+                    <span id="mic-gain-val" style="font-family: var(--font-mono); font-size: 12px;">100%</span>
+                </div>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <strong>Roger Beep Tone</strong>
+                    <p style="font-size: 11px; color: var(--text-muted);">Play Quindar tone on release</p>
+                </div>
+                <input type="checkbox" id="toggle-roger-beep" checked>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <strong>Walkie-Talkie Bandpass Filter</strong>
+                    <p style="font-size: 11px; color: var(--text-muted);">Authentic VHF/UHF radio voice EQ</p>
+                </div>
+                <input type="checkbox" id="toggle-radio-filter" checked>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <strong>Master Sound Effects (SFX)</strong>
+                    <p style="font-size: 11px; color: var(--text-muted);">PTT clicks, squelch noise, chimes</p>
+                </div>
+                <input type="checkbox" id="toggle-sfx" checked>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= JAVASCRIPT SCRIPTS ================= -->
+    <script src="sounds/sfx.js"></script>
+    <script src="js/audio.js"></script>
+    <script src="js/bluetooth.js"></script>
+    <script src="js/rooms.js"></script>
+    <script src="js/peer.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration note:', err));
+            });
+        }
+    </script>
+</body>
+</html>

@@ -5,3 +5,6 @@ Thumbs.db
 .system_generated/
 scratch/
 *.tmp
+__pycache__/
+*.pyc
+*.pyo

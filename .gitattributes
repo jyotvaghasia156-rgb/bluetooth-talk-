@@ -1,0 +1,6 @@
+# Prioritize Python and Java in GitHub Language Statistics
+*.py linguist-detectable=true
+*.java linguist-detectable=true
+*.html linguist-detectable=false
+*.css linguist-detectable=false
+*.js linguist-detectable=false

@@ -14,11 +14,11 @@ import javax.swing.*;
 public class BlueTalkApp extends JFrame {
 
     private String callsign = "ALPHA-" + (10 + new Random().nextInt(90));
-    private int channel = 1;
+    private String roomCode = "HQ-MAIN";
     private boolean isTransmitting = false;
 
     // GUI Components
-    private JLabel freqLabel;
+    private JLabel roomLabel;
     private JLabel statusLabel;
     private JButton pttButton;
     private JTextArea commsLog;
@@ -72,12 +72,12 @@ public class BlueTalkApp extends JFrame {
         left.setBackground(new Color(13, 20, 34));
         left.setBorder(BorderFactory.createLineBorder(new Color(28, 43, 68), 1));
 
-        freqLabel = new JLabel("462.5625 MHz");
-        freqLabel.setFont(new Font("Monospaced", Font.BOLD, 26));
-        freqLabel.setForeground(new Color(0, 243, 255));
-        freqLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        roomLabel = new JLabel("ROOM: " + roomCode);
+        roomLabel.setFont(new Font("Monospaced", Font.BOLD, 24));
+        roomLabel.setForeground(new Color(0, 243, 255));
+        roomLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
         left.add(Box.createVerticalStrut(15));
-        left.add(freqLabel);
+        left.add(roomLabel);
 
         statusLabel = new JLabel("STATION READY");
         statusLabel.setFont(new Font("Monospaced", Font.BOLD, 12));
@@ -146,7 +146,7 @@ public class BlueTalkApp extends JFrame {
         main.add(right);
         add(main, BorderLayout.CENTER);
 
-        logSystem("BlueTalk Java Core Online. Channel " + channel + " active.");
+        logSystem("BlueTalk Java Core Online. Room [" + roomCode + "] active.");
     }
 
     private void startPTT() {

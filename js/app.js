@@ -1,5 +1,5 @@
 /**
- * BlueTalk - Main Application Controller (with Mobile Web Share & Theme Integration)
+ * BlueTalk Pro - Main Application Controller (Internet Relay + Bluetooth Direct)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -12,8 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 window.sfx.init();
                 const device = await window.btManager.scanAndConnect();
+                const modeNote = device.hasDataLink
+                    ? `Bluetooth Data Link active with [${device.name}]`
+                    : `Bluetooth paired with [${device.name}] (Generic/Audio Mode)`;
                 window.ui.showToast(`Connected to: ${device.name}`, 'success');
-                window.ui.appendSystemNotice(`Bluetooth paired with [${device.name}]`);
+                window.ui.appendSystemNotice(modeNote);
                 if (btDisconnectBtn) btDisconnectBtn.style.display = 'inline-flex';
             } catch (err) {
                 if (err.name !== 'NotFoundError') {
@@ -34,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // 2. Wire Bluetooth State Listener
     window.btManager.onStateChange = (state, deviceName) => {
         window.ui.updateBluetoothStatus(state, deviceName);
+        if (btDisconnectBtn) {
+            btDisconnectBtn.style.display = state === 'connected' ? 'inline-flex' : 'none';
+        }
     };
 
     // 3. Wire Peer Network Events
@@ -115,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 6. Audio / Settings Modals & Controls
+    // 6. Audio / Settings Modals & Share Link Actions
     const settingsBtn = document.getElementById('settings-btn');
     const settingsModal = document.getElementById('settings-modal');
     const closeSettingsBtn = document.getElementById('close-settings-btn');
@@ -131,51 +137,37 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Share / Phone Connect Modal & Native Mobile Share
-    const sharePhoneBtn = document.getElementById('share-phone-btn');
-    const shareModal = document.getElementById('share-modal');
-    const closeShareBtn = document.getElementById('close-share-btn');
     const shareUrlBox = document.getElementById('share-url-box');
     const copyUrlBtn = document.getElementById('copy-url-btn');
     const nativeShareBtn = document.getElementById('native-share-btn');
 
-    if (sharePhoneBtn && shareModal) {
-        sharePhoneBtn.addEventListener('click', () => {
-            if (shareUrlBox) {
-                shareUrlBox.textContent = window.location.href;
-            }
-            shareModal.classList.add('open');
-        });
-    }
-    if (closeShareBtn && shareModal) {
-        closeShareBtn.addEventListener('click', () => {
-            shareModal.classList.remove('open');
-        });
-    }
     if (copyUrlBtn) {
         copyUrlBtn.addEventListener('click', async () => {
+            const shareLink = window.currentShareUrl || (shareUrlBox ? shareUrlBox.textContent : window.peerNet.getShareUrl());
             try {
-                await navigator.clipboard.writeText(window.location.href);
-                window.ui.showToast('Link copied to clipboard! Open on your phone.', 'success');
+                await navigator.clipboard.writeText(shareLink);
+                window.ui.showToast('Invite link copied! Share over WhatsApp/SMS or open on phone.', 'success');
             } catch (e) {
                 window.ui.showToast('Select and copy URL above', 'info');
             }
         });
     }
+
     if (nativeShareBtn) {
         nativeShareBtn.addEventListener('click', async () => {
+            const shareLink = window.currentShareUrl || (shareUrlBox ? shareUrlBox.textContent : window.peerNet.getShareUrl());
             if (navigator.share) {
                 try {
                     await navigator.share({
-                        title: 'BlueTalk Walkie-Talkie',
-                        text: `Join my BlueTalk Radio Channel ${window.peerNet.currentChannel} (${window.roomManager.getCurrentRoom().name}):`,
-                        url: window.location.href
+                        title: 'BlueTalk Pro - Join My Room',
+                        text: `Join my BlueTalk Room [${window.roomManager.currentRoom}] to talk live:`,
+                        url: shareLink
                     });
                 } catch (e) {
                     console.log('Share canceled or error:', e);
                 }
             } else {
-                window.ui.showToast('Native share supported on mobile browsers! Use Copy Link above.', 'info');
+                window.ui.showToast('Native share works on mobile! Use Copy URL above.', 'info');
             }
         });
     }
@@ -215,7 +207,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // 7. Initial Welcome Message
-    window.ui.appendSystemNotice(`BlueTalk Radio System Online. Frequency Channel 1 (462.5625 MHz).`);
+    // 7. Initial Welcome Notice (Room & Transport-based, no MHz frequency)
+    const activeRoom = window.roomManager ? window.roomManager.currentRoom : 'HQ-MAIN';
+    const activeMode = window.peerNet ? window.peerNet.connectionMode : 'internet';
+    window.ui.appendSystemNotice(`BlueTalk Online in Room [${activeRoom}] (${activeMode === 'bluetooth' ? 'Bluetooth Direct' : 'Internet Relay'}).`);
     window.ui.appendSystemNotice(`Hold SPACEBAR on laptop or tap & hold TRANSMIT on phone to talk live.`);
 });

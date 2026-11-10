@@ -21,8 +21,16 @@ class UIManager {
         this.chatFeed = document.getElementById('chat-messages');
         this.messageInput = document.getElementById('message-input');
         this.sendBtn = document.getElementById('send-btn');
-        this.channelSelect = document.getElementById('channel-select');
-        this.frequencyDisplay = document.getElementById('frequency-display');
+        this.contactDisplay = document.getElementById('contact-display');
+        this.modeMetaLabel = document.getElementById('mode-meta-label');
+        this.connStatusTag = document.getElementById('freq-status');
+        this.roomCodeInput = document.getElementById('room-code-input');
+        this.joinRoomBtn = document.getElementById('join-room-btn');
+        this.newRoomBtn = document.getElementById('new-room-btn');
+        this.serverUrlInput = document.getElementById('server-url-input');
+        this.connectServerBtn = document.getElementById('connect-server-btn');
+        this.internetConfigBox = document.getElementById('internet-config-box');
+        this.bluetoothConfigBox = document.getElementById('bluetooth-config-box');
         this.callsignInput = document.getElementById('callsign-input');
         this.peerCountBadge = document.getElementById('peer-count-badge');
         this.peerListContainer = document.getElementById('peer-list');
@@ -61,6 +69,7 @@ class UIManager {
         this.initVoiceModulatorControls();
         this.initQrShareModal();
         this.initNetworkStatusListener();
+        this.initConnectionControls();
     }
 
     initTheme() {
@@ -553,27 +562,22 @@ class UIManager {
         const closeShareBtn = document.getElementById('close-share-btn');
         const qrCanvas = document.getElementById('qr-code-canvas');
         const shareUrlBox = document.getElementById('share-url-box');
-        const copyUrlBtn = document.getElementById('copy-url-btn');
+        const qrRoomBadge = document.getElementById('qr-room-badge');
+        const qrTunnelInput = document.getElementById('qr-tunnel-input');
+        const qrApplyTunnelBtn = document.getElementById('qr-apply-tunnel-btn');
+        const qrUseWifiBtn = document.getElementById('qr-use-wifi-btn');
 
         if (!sharePhoneBtn || !shareModal) return;
 
-        sharePhoneBtn.addEventListener('click', async () => {
-            let targetUrl = window.location.href;
+        let wifiBaseUrl = window.location.origin;
 
-            // Fetch local IP from server if available
-            try {
-                const res = await fetch('/api/status');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.local_ip && data.port) {
-                        targetUrl = `http://${data.local_ip}:${data.port}/`;
-                    }
-                }
-            } catch (e) {}
-
+        const renderShareLink = (baseUrl) => {
+            const targetUrl = window.peerNet ? window.peerNet.getShareUrl(baseUrl) : window.location.href;
+            window.currentShareUrl = targetUrl;
             if (shareUrlBox) shareUrlBox.textContent = targetUrl;
-
-            // Render crisp QR code onto canvas
+            if (qrRoomBadge && window.roomManager) {
+                qrRoomBadge.textContent = `ROOM: ${window.roomManager.currentRoom}`;
+            }
             if (qrCanvas && window.QRCode) {
                 window.QRCode.render(qrCanvas, targetUrl, {
                     size: 210,
@@ -581,45 +585,240 @@ class UIManager {
                     colorLight: '#0d131f'
                 });
             }
+        };
 
+        sharePhoneBtn.addEventListener('click', async () => {
+            let preferredBase = window.peerNet ? window.peerNet.serverUrl : window.location.origin;
+            wifiBaseUrl = preferredBase;
+
+            try {
+                const res = await fetch(window.peerNet.getApiUrl('/api/status'), {
+                    cache: 'no-store',
+                    headers: window.peerNet.getFetchHeaders()
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.local_ip && data.port) {
+                        wifiBaseUrl = `http://${data.local_ip}:${data.port}`;
+                    }
+                    if (data.tunnel_url) {
+                        preferredBase = data.tunnel_url;
+                    } else if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                        preferredBase = wifiBaseUrl;
+                    }
+                }
+            } catch (e) {}
+
+            if (qrTunnelInput) {
+                qrTunnelInput.value = preferredBase;
+            }
+            renderShareLink(preferredBase);
             shareModal.classList.add('open');
         });
+
+        if (qrApplyTunnelBtn && qrTunnelInput) {
+            qrApplyTunnelBtn.addEventListener('click', () => {
+                const raw = qrTunnelInput.value.trim();
+                const clean = window.peerNet ? window.peerNet.normalizeServerUrl(raw) : raw;
+                qrTunnelInput.value = clean;
+                renderShareLink(clean);
+                this.showToast('QR Invite Link updated!', 'success');
+            });
+        }
+
+        if (qrUseWifiBtn && qrTunnelInput) {
+            qrUseWifiBtn.addEventListener('click', () => {
+                qrTunnelInput.value = wifiBaseUrl;
+                renderShareLink(wifiBaseUrl);
+                this.showToast('Switched QR to Local Wi-Fi URL', 'info');
+            });
+        }
 
         if (closeShareBtn) {
             closeShareBtn.addEventListener('click', () => shareModal.classList.remove('open'));
         }
-
-        if (copyUrlBtn) {
-            copyUrlBtn.addEventListener('click', async () => {
-                const text = shareUrlBox ? shareUrlBox.textContent : window.location.href;
-                try {
-                    await navigator.clipboard.writeText(text);
-                    this.showToast('Link copied to clipboard! Open on your phone.', 'success');
-                } catch (e) {
-                    this.showToast('Select URL to copy', 'info');
-                }
-            });
-        }
     }
 
     /* ==============================================================
-       NETWORK TELEMETRY & STATUS LISTENER
+       NETWORK TELEMETRY & CONNECTION MODE CONTROLS
     ============================================================== */
 
     initNetworkStatusListener() {
         if (!window.peerNet) return;
 
-        window.peerNet.onNetworkStatus = (isRelayOnline, latencyMs, serverInfo) => {
+        window.peerNet.onNetworkStatus = (isOnline, latencyMs, serverInfo, mode) => {
+            const activeMode = mode || window.peerNet.connectionMode;
             if (this.networkLatencyBadge) {
-                if (isRelayOnline) {
+                if (activeMode === 'bluetooth') {
+                    if (isOnline) {
+                        this.networkLatencyBadge.className = 'network-badge online';
+                        this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> BT LINKED`;
+                    } else {
+                        this.networkLatencyBadge.className = 'network-badge offline';
+                        this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> BT STANDBY`;
+                    }
+                } else if (isOnline) {
                     this.networkLatencyBadge.className = 'network-badge online';
-                    this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> LAN SYNC ${latencyMs}ms`;
+                    this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> INTERNET ${latencyMs}ms`;
                 } else {
                     this.networkLatencyBadge.className = 'network-badge offline';
-                    this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> LOCAL ONLY`;
+                    this.networkLatencyBadge.innerHTML = `<span class="badge-dot"></span> RELAY OFFLINE`;
+                }
+            }
+
+            if (this.connStatusTag && !this.isPTTActive && !this.isReceivingAudio) {
+                if (activeMode === 'bluetooth') {
+                    this.connStatusTag.textContent = isOnline ? 'BT LINKED' : 'BT STANDBY';
+                } else {
+                    this.connStatusTag.textContent = isOnline ? 'ONLINE' : 'LOCAL / OFFLINE';
                 }
             }
         };
+    }
+
+    initConnectionControls() {
+        const modeBtns = document.querySelectorAll('.conn-mode-btn');
+        modeBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                if (window.peerNet) {
+                    window.peerNet.setConnectionMode(mode);
+                }
+                this.updateConnectionModeUI();
+                this.appendSystemNotice(
+                    mode === 'bluetooth'
+                        ? 'Switched to Bluetooth Direct mode.'
+                        : `Switched to Internet / Tunnel Relay mode (${window.peerNet.serverUrl}).`
+                );
+                window.sfx.playMicClickIn();
+            });
+        });
+
+        if (window.peerNet) {
+            window.peerNet.onModeChange = () => this.updateConnectionModeUI();
+        }
+
+        // Room Code Input + Join + Randomize
+        const applyRoomCode = () => {
+            if (!this.roomCodeInput || !window.roomManager) return;
+            const code = window.roomManager.setRoom(this.roomCodeInput.value);
+            this.roomCodeInput.value = code;
+            this.updateConnectionModeUI();
+            window.sfx.playMicClickIn();
+        };
+
+        if (this.joinRoomBtn) {
+            this.joinRoomBtn.addEventListener('click', applyRoomCode);
+        }
+        if (this.roomCodeInput) {
+            this.roomCodeInput.value = window.roomManager ? window.roomManager.currentRoom : 'HQ-MAIN';
+            this.roomCodeInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') applyRoomCode();
+            });
+        }
+        if (this.newRoomBtn && window.roomManager) {
+            this.newRoomBtn.addEventListener('click', () => {
+                const code = window.roomManager.generateRandomCode();
+                if (this.roomCodeInput) this.roomCodeInput.value = code;
+                window.roomManager.setRoom(code);
+                this.updateConnectionModeUI();
+                this.showToast(`Created Private Room: ${code}`, 'success');
+            });
+        }
+
+        // Server / Tunnel URL Connect
+        if (this.serverUrlInput && window.peerNet) {
+            this.serverUrlInput.value = window.peerNet.serverUrl;
+            const applyServer = () => {
+                window.peerNet.setServerUrl(this.serverUrlInput.value);
+                this.serverUrlInput.value = window.peerNet.serverUrl;
+                this.showToast(`Relay URL set: ${window.peerNet.serverUrl}`, 'info');
+            };
+            if (this.connectServerBtn) {
+                this.connectServerBtn.addEventListener('click', applyServer);
+            }
+            this.serverUrlInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') applyServer();
+            });
+        }
+
+        // Panel Bluetooth buttons
+        const btPanelScanBtn = document.getElementById('bt-panel-scan-btn');
+        const btSerialBtn = document.getElementById('bt-serial-btn');
+        const btHostScanBtn = document.getElementById('bt-host-scan-btn');
+        const btHostList = document.getElementById('bt-host-devices-list');
+
+        if (btPanelScanBtn) {
+            btPanelScanBtn.addEventListener('click', () => {
+                const headerScan = document.getElementById('bt-scan-btn');
+                if (headerScan) headerScan.click();
+            });
+        }
+
+        if (btSerialBtn) {
+            btSerialBtn.addEventListener('click', async () => {
+                try {
+                    window.sfx.init();
+                    const dev = await window.btManager.connectSerialBluetooth();
+                    this.showToast(`Bluetooth Serial connected: ${dev.name}`, 'success');
+                    this.appendSystemNotice(`Bluetooth Serial COM linked: [${dev.name}]`);
+                    const disc = document.getElementById('bt-disconnect-btn');
+                    if (disc) disc.style.display = 'inline-flex';
+                } catch (err) {
+                    if (err.name !== 'NotFoundError') {
+                        this.showToast(err.message || 'Bluetooth Serial failed', 'error');
+                    }
+                }
+            });
+        }
+
+        if (btHostScanBtn && btHostList) {
+            btHostScanBtn.addEventListener('click', async () => {
+                btHostList.textContent = 'Scanning host paired devices...';
+                const data = await window.btManager.fetchHostPairedDevices();
+                if (!data) {
+                    btHostList.textContent = 'Host scan available when running locally via server.py.';
+                    return;
+                }
+                if (!data.devices || !data.devices.length) {
+                    btHostList.textContent = `Local BT MAC: ${data.local_mac || 'N/A'} — No paired devices found.`;
+                    return;
+                }
+                const preview = data.devices.slice(0, 6).map(d => `${d.name} (${d.mac})`).join(' • ');
+                btHostList.textContent = `Paired (${data.devices.length}): ${preview}`;
+            });
+        }
+
+        this.updateConnectionModeUI();
+    }
+
+    updateConnectionModeUI() {
+        const mode = window.peerNet ? window.peerNet.connectionMode : 'internet';
+        const room = window.roomManager ? window.roomManager.currentRoom : 'HQ-MAIN';
+
+        document.querySelectorAll('.conn-mode-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        if (this.internetConfigBox) {
+            this.internetConfigBox.style.display = mode === 'internet' ? 'block' : 'none';
+        }
+        if (this.bluetoothConfigBox) {
+            this.bluetoothConfigBox.style.display = mode === 'bluetooth' ? 'block' : 'none';
+        }
+        if (this.roomCodeInput && document.activeElement !== this.roomCodeInput) {
+            this.roomCodeInput.value = room;
+        }
+        if (this.modeMetaLabel) {
+            this.modeMetaLabel.textContent = mode === 'bluetooth' ? '📶 BLUETOOTH DIRECT' : '🌐 INTERNET / TUNNEL RELAY';
+        }
+        if (this.contactDisplay) {
+            if (mode === 'bluetooth' && window.btManager && window.btManager.isConnected) {
+                this.contactDisplay.textContent = `BT: ${window.btManager.deviceName}`;
+            } else {
+                this.contactDisplay.textContent = `ROOM: ${room}`;
+            }
+        }
     }
 
     /* ==============================================================
@@ -689,26 +888,6 @@ class UIManager {
                 this.showToast(`Callsign updated: ${window.peerNet.callsign}`, 'info');
             });
         }
-
-        // Channel Select & Frequencies
-        const frequencies = {
-            1: '462.5625 MHz', 2: '462.5875 MHz', 3: '462.6125 MHz', 4: '462.6375 MHz',
-            5: '462.6625 MHz', 6: '462.6875 MHz', 7: '462.7125 MHz', 8: '467.5625 MHz',
-            9: '467.5875 MHz', 10: '467.6125 MHz', 11: '467.6375 MHz', 12: '467.6625 MHz',
-            13: '467.6875 MHz', 14: '467.7125 MHz', 15: '462.5500 MHz', 16: '462.7250 MHz'
-        };
-
-        if (this.channelSelect) {
-            this.channelSelect.addEventListener('change', (e) => {
-                const ch = e.target.value;
-                window.peerNet.setChannel(ch);
-                if (this.frequencyDisplay) {
-                    this.frequencyDisplay.textContent = frequencies[ch] || '462.5625 MHz';
-                }
-                this.appendSystemNotice(`Switched to Channel ${ch} (${frequencies[ch] || '462.5625 MHz'})`);
-                window.sfx.playMicClickIn();
-            });
-        }
     }
 
     async triggerPTTStart() {
@@ -753,13 +932,16 @@ class UIManager {
     initChatRooms() {
         if (!this.roomSelect) return;
         this.populateRoomsDropdown();
+        if (this.currentRoomBadge && window.roomManager) {
+            this.currentRoomBadge.textContent = window.roomManager.getCurrentRoom().name;
+        }
 
         this.roomSelect.addEventListener('change', (e) => {
             if (e.target.value === '__custom__') {
-                const customName = prompt('Enter New Chat Room Name (e.g. stealth-ops, squad-bravo):');
+                const customName = prompt('Enter Room Code / Contact ID (e.g. ALPHA-TEAM, BT-4921):');
                 if (customName && customName.trim()) {
-                    const clean = customName.trim().toLowerCase().replace(/\s+/g, '-');
-                    window.roomManager.addCustomRoom(clean, `📻 #${clean}`);
+                    const clean = window.roomManager.normalizeRoom(customName);
+                    window.roomManager.addCustomRoom(clean, `🔗 #${clean}`);
                     this.populateRoomsDropdown();
                     window.roomManager.setRoom(clean);
                     this.roomSelect.value = clean;
@@ -772,9 +954,12 @@ class UIManager {
         });
 
         window.roomManager.onRoomChange = (room) => {
+            this.populateRoomsDropdown();
             if (this.currentRoomBadge) this.currentRoomBadge.textContent = room.name;
             if (this.roomSelect) this.roomSelect.value = room.id;
-            this.appendSystemNotice(`Switched to Chat Room: ${room.name}`);
+            if (this.roomCodeInput) this.roomCodeInput.value = room.id;
+            this.updateConnectionModeUI();
+            this.appendSystemNotice(`Joined Room [${room.id}]`);
             this.reloadRoomChat(room.id);
         };
     }
@@ -957,7 +1142,7 @@ class UIManager {
         if (!this.chatFeed) return;
         const el = document.createElement('div');
         el.className = 'system-notice';
-        el.textContent = `[RADIO] ${text}`;
+        el.textContent = `[BLUETALK] ${text}`;
         this.chatFeed.appendChild(el);
         this.chatFeed.scrollTop = this.chatFeed.scrollHeight;
     }
@@ -970,6 +1155,7 @@ class UIManager {
             this.peerListContainer.innerHTML = '';
             const user = window.auth ? window.auth.currentUser : null;
             const selfAvatar = user ? (user.avatar || '🦅') : '🦅';
+            const myMode = window.peerNet ? window.peerNet.connectionMode.toUpperCase() : 'INTERNET';
 
             const selfItem = document.createElement('div');
             selfItem.className = 'peer-item self';
@@ -977,18 +1163,19 @@ class UIManager {
                 <span class="peer-dot active"></span>
                 <span class="peer-avatar-tag">${selfAvatar}</span>
                 <span class="peer-name">${this.escapeHtml(window.peerNet.callsign)} (You)</span>
-                <span class="peer-tag">LOCAL</span>
+                <span class="peer-tag">${myMode}</span>
             `;
             this.peerListContainer.appendChild(selfItem);
 
             peers.forEach(peer => {
                 const item = document.createElement('div');
                 item.className = `peer-item ${peer.isTalking ? 'talking' : ''}`;
+                const trLabel = (peer.transport || 'internet').toUpperCase();
                 item.innerHTML = `
                     <span class="peer-dot ${peer.isTalking ? 'transmitting' : 'active'}"></span>
                     <span class="peer-avatar-tag">${peer.avatar || '👤'}</span>
                     <span class="peer-name">${this.escapeHtml(peer.callsign)}</span>
-                    <span class="peer-tag">${peer.isTalking ? 'TALKING' : '#' + (peer.room || 'hq')}</span>
+                    <span class="peer-tag">${peer.isTalking ? 'TALKING' : trLabel}</span>
                 `;
                 this.peerListContainer.appendChild(item);
             });
@@ -1002,6 +1189,10 @@ class UIManager {
         }
         if (this.deviceNameLabel) {
             this.deviceNameLabel.textContent = deviceName || 'No BT Device';
+        }
+        this.updateConnectionModeUI();
+        if (window.peerNet && window.peerNet.connectionMode === 'bluetooth' && window.peerNet.onNetworkStatus) {
+            window.peerNet.onNetworkStatus(state === 'connected', 0, null, 'bluetooth');
         }
     }
 

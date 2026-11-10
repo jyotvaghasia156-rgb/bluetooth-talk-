@@ -1,30 +1,52 @@
 /**
- * BlueTalk - Chat Rooms Manager
- * Handles multi-room communication, room switching, custom room creation,
- * and room-specific message routing.
+ * BlueTalk Pro - Room Code & Contact Manager
+ * Manages Room Codes, Join Links (?room=...), custom room creation,
+ * and per-room message history (no UHF MHz frequencies required).
  */
 
 class ChatRoomManager {
     constructor() {
         this.rooms = [
-            { id: 'general-hq', name: '🌐 General HQ', desc: 'Main Base Public Operations', isDefault: true },
-            { id: 'tactical-alpha', name: '⚡ Squad Alpha', desc: 'Rapid Deployment & Fireteam Comms' },
-            { id: 'recon-intel', name: '🕵️ Recon & Intel', desc: 'Surveillance & Strategic Scouting' },
-            { id: 'emergency-sos', name: '🚨 Emergency SOS', desc: 'High-Priority Distress Channel' },
-            { id: 'stealth-direct', name: '🔒 Stealth Ops', desc: 'Encrypted Direct Radio Room' }
+            { id: 'HQ-MAIN', name: '🌐 HQ-MAIN', desc: 'Main Public Lobby', isDefault: true },
+            { id: 'SQUAD-ALPHA', name: '⚡ SQUAD-ALPHA', desc: 'Team Operations' },
+            { id: 'RECON-INTEL', name: '🕵️ RECON-INTEL', desc: 'Recon & Scouting' },
+            { id: 'SOS-PRIORITY', name: '🚨 SOS-PRIORITY', desc: 'High-Priority Alert Room' },
+            { id: 'PRIVATE-1ON1', name: '🔒 PRIVATE-1ON1', desc: 'Direct Private Room' }
         ];
 
-        this.currentRoom = 'general-hq';
-        this.roomMessages = new Map(); // roomId -> Array of messages
+        this.currentRoom = 'HQ-MAIN';
+        this.roomMessages = new Map();
         this.rooms.forEach(r => this.roomMessages.set(r.id, []));
 
         this.onRoomChange = null; // (newRoom) => void
     }
 
+    normalizeRoom(roomId) {
+        if (!roomId) return 'HQ-MAIN';
+        const clean = String(roomId).trim().toUpperCase().replace(/[^A-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32);
+        return clean || 'HQ-MAIN';
+    }
+
     init() {
+        const params = new URLSearchParams(window.location.search);
+        const urlRoom = params.get('room');
+        if (urlRoom) {
+            const clean = this.normalizeRoom(urlRoom);
+            if (!this.rooms.find(r => r.id === clean)) {
+                this.addCustomRoom(clean, `🔗 #${clean}`, 'Joined via Invite Link');
+            }
+            this.currentRoom = clean;
+            localStorage.setItem('bluetalk_active_room', clean);
+            return;
+        }
+
         const savedRoom = localStorage.getItem('bluetalk_active_room');
-        if (savedRoom && this.getRoom(savedRoom)) {
-            this.currentRoom = savedRoom;
+        if (savedRoom) {
+            const clean = this.normalizeRoom(savedRoom);
+            if (!this.rooms.find(r => r.id === clean)) {
+                this.addCustomRoom(clean, `🔗 #${clean}`, 'Saved Room');
+            }
+            this.currentRoom = clean;
         }
     }
 
@@ -33,7 +55,8 @@ class ChatRoomManager {
     }
 
     getRoom(roomId) {
-        return this.rooms.find(r => r.id === roomId) || this.rooms[0];
+        const clean = this.normalizeRoom(roomId);
+        return this.rooms.find(r => r.id === clean) || this.rooms[0];
     }
 
     getCurrentRoom() {
@@ -41,31 +64,34 @@ class ChatRoomManager {
     }
 
     setRoom(roomId) {
-        if (!this.getRoom(roomId)) {
-            // If custom room, add it dynamically
-            this.addCustomRoom(roomId, `📻 #${roomId}`, 'Custom Radio Room');
+        const clean = this.normalizeRoom(roomId);
+        if (!this.rooms.find(r => r.id === clean)) {
+            this.addCustomRoom(clean, `🔗 #${clean}`, 'Custom Room Code');
         }
 
-        this.currentRoom = roomId;
-        localStorage.setItem('bluetalk_active_room', roomId);
+        this.currentRoom = clean;
+        localStorage.setItem('bluetalk_active_room', clean);
 
-        // Update peer network channel name
         if (window.peerNet) {
-            window.peerNet.setChatRoom(roomId);
+            window.peerNet.setChatRoom(clean);
         }
 
         if (this.onRoomChange) {
             this.onRoomChange(this.getCurrentRoom());
         }
+        return clean;
     }
 
-    addCustomRoom(id, name, desc = 'Custom Channel') {
-        const cleanId = id.toLowerCase().replace(/[^a-z0-9-_]/g, '');
-        if (!cleanId) return null;
+    generateRandomCode() {
+        const num = Math.floor(1000 + Math.random() * 9000);
+        return `BT-${num}`;
+    }
 
+    addCustomRoom(id, name, desc = 'Custom Room') {
+        const cleanId = this.normalizeRoom(id);
         let existing = this.rooms.find(r => r.id === cleanId);
         if (!existing) {
-            const newRoom = { id: cleanId, name: name || `#${cleanId}`, desc: desc };
+            const newRoom = { id: cleanId, name: name || `🔗 #${cleanId}`, desc: desc };
             this.rooms.push(newRoom);
             this.roomMessages.set(cleanId, []);
             return newRoom;
@@ -74,14 +100,16 @@ class ChatRoomManager {
     }
 
     storeMessage(roomId, msg) {
-        if (!this.roomMessages.has(roomId)) {
-            this.roomMessages.set(roomId, []);
+        const clean = this.normalizeRoom(roomId);
+        if (!this.roomMessages.has(clean)) {
+            this.roomMessages.set(clean, []);
         }
-        this.roomMessages.get(roomId).push(msg);
+        this.roomMessages.get(clean).push(msg);
     }
 
     getMessages(roomId) {
-        return this.roomMessages.get(roomId) || [];
+        const clean = this.normalizeRoom(roomId);
+        return this.roomMessages.get(clean) || [];
     }
 }
 

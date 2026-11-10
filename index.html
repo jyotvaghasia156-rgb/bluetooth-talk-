@@ -23,8 +23,8 @@
         <div class="login-card">
             <div class="login-header">
                 <div class="login-logo-glow">📻</div>
-                <h2>BLUETALK <span>PRO CLEARANCE</span></h2>
-                <p>Tactical Bluetooth & High-Frequency Comm Network</p>
+                <h2>BLUETALK <span>PRO CONNECT</span></h2>
+                <p>Internet Relay & Bluetooth Direct Communicator</p>
             </div>
 
             <!-- Google Account Sign-In Button -->
@@ -39,7 +39,7 @@
             </button>
 
             <div class="login-divider">
-                <span>OR SIGN IN AS FIELD OPERATOR</span>
+                <span>OR JOIN BY CALLSIGN & ROOM CODE</span>
             </div>
 
             <form id="operator-login-form">
@@ -53,37 +53,40 @@
 
                 <!-- Callsign Input -->
                 <div class="login-group">
-                    <label for="login-callsign-input">Operator Callsign / Unit</label>
+                    <label for="login-callsign-input">Your Name / Callsign</label>
                     <div class="input-with-btn">
                         <input type="text" id="login-callsign-input" maxlength="12" placeholder="e.g. VIPER-07" required autocomplete="off">
                         <button type="button" id="btn-randomize-callsign" class="btn-rnd" title="Generate Random Callsign">🎲 Random</button>
                     </div>
                 </div>
 
-                <!-- Frequency Channel Selection -->
+                <!-- Connection Mode Selection -->
                 <div class="login-group">
-                    <label for="login-channel-select">Initial Radio Channel</label>
-                    <select id="login-channel-select">
-                        <option value="1">CH 01 (462.5625 MHz) - Primary Operations</option>
-                        <option value="2">CH 02 (462.5875 MHz) - Squad Alpha</option>
-                        <option value="3">CH 03 (462.6125 MHz) - Squad Bravo</option>
-                        <option value="4">CH 04 (462.6375 MHz) - Squad Charlie</option>
-                        <option value="5">CH 05 (462.6625 MHz) - Secure Command</option>
-                        <option value="6">CH 06 (462.6875 MHz) - Tactical Logistics</option>
-                        <option value="7">CH 07 (462.7125 MHz) - Reconnaissance</option>
-                        <option value="8">CH 08 (467.5625 MHz) - Open Frequency</option>
+                    <label for="login-mode-select">Connection Mode</label>
+                    <select id="login-mode-select">
+                        <option value="internet">🌐 Internet / Tunnel Relay (Wi-Fi, ngrok, Cloudflare)</option>
+                        <option value="bluetooth">📶 Bluetooth Direct (BLE GATT / Serial SPP)</option>
                     </select>
+                </div>
+
+                <!-- Room Code / Contact ID -->
+                <div class="login-group">
+                    <label for="login-room-input">Room Code / Contact ID</label>
+                    <div class="input-with-btn">
+                        <input type="text" id="login-room-input" maxlength="24" value="HQ-MAIN" placeholder="e.g. HQ-MAIN or BT-4921" required autocomplete="off">
+                        <button type="button" id="btn-randomize-room" class="btn-rnd" title="Generate Private Room Code">🎲 New</button>
+                    </div>
                 </div>
 
                 <!-- Security / Link Notice -->
                 <div class="login-security-notice">
-                    <span>🔒 AES-256 Bit Encrypted Wireless Link</span>
-                    <span>• Web Bluetooth & Live Audio Relay</span>
+                    <span>🌐 Internet & Tunnel Ready</span>
+                    <span>• 📶 Bluetooth Direct & QR Invite Link</span>
                 </div>
 
                 <!-- Submit Button -->
                 <button type="submit" class="btn-auth-enter">
-                    <span>⚡ INITIALIZE OPERATOR LINK</span>
+                    <span>⚡ CONNECT & ENTER ROOM</span>
                 </button>
             </form>
         </div>
@@ -97,14 +100,14 @@
                 <div class="brand-logo">📻</div>
                 <div class="brand-info">
                     <h1>BLUETALK <span>PRO</span></h1>
-                    <span class="tagline">MIL-SPEC TACTICAL WALKIE-TALKIE</span>
+                    <span class="tagline">INTERNET &amp; BLUETOOTH COMMUNICATOR</span>
                 </div>
             </div>
 
             <div class="header-status-group">
                 <!-- Live Network Latency Badge -->
-                <div id="network-latency-badge" class="network-badge online" title="Real-Time Network Sync Status">
-                    <span class="badge-dot"></span> LAN SYNC
+                <div id="network-latency-badge" class="network-badge online" title="Internet / Bluetooth Link Status">
+                    <span class="badge-dot"></span> INTERNET
                 </div>
 
                 <!-- User Profile Badge -->
@@ -113,11 +116,11 @@
                     <span id="user-header-callsign" class="user-header-name">OPERATOR</span>
                 </button>
 
-                <span id="connection-status-pill" class="status-pill disconnected">STANDALONE</span>
+                <span id="connection-status-pill" class="status-pill disconnected">STANDBY</span>
                 <span id="connected-device-name" class="device-name-text">No BT Device</span>
                 
                 <button id="bt-scan-btn" class="btn-bt-scan" title="Scan & Pair Bluetooth Device">
-                    <span>📶</span> <span class="btn-text">Scan BT</span>
+                    <span>📶</span> <span class="btn-text">Pair BT</span>
                 </button>
                 <button id="bt-disconnect-btn" class="btn-bt-disconnect" style="display: none;">
                     Disconnect
@@ -127,7 +130,7 @@
                 <button id="theme-toggle-btn" class="btn-icon" title="Toggle Dark / Light Mode">☀️</button>
                 
                 <!-- Share Phone / QR Connect Button -->
-                <button id="share-phone-btn" class="btn-icon qr-pulse-btn" title="Connect Phone via Instant QR Code">📱 QR</button>
+                <button id="share-phone-btn" class="btn-icon qr-pulse-btn" title="Share Invite Link & QR Code">📱 QR</button>
                 
                 <!-- Settings Button -->
                 <button id="settings-btn" class="btn-icon" title="Audio & Radio Settings">⚙️</button>
@@ -137,44 +140,59 @@
         <!-- ================= MAIN MULTI-COLUMN WORKSPACE ================= -->
         <div class="main-body">
 
-            <!-- LEFT / TAB 1: TACTICAL RADIO TRANSMITTER & PTT -->
+            <!-- LEFT / TAB 1: CONNECTION, ROOM CODE & PTT -->
             <section class="radio-panel tab-content active" id="tab-radio">
-                <!-- Frequency Display Screen -->
+                <!-- Active Contact / Connection Display Card -->
                 <div class="frequency-card">
                     <div class="freq-meta">
-                        <span class="meta-glow">FREQ / UHF BAND</span>
-                        <span id="freq-status" class="freq-status-tag">STATION ON AIR</span>
+                        <span id="mode-meta-label" class="meta-glow">🌐 INTERNET / TUNNEL RELAY</span>
+                        <span id="freq-status" class="freq-status-tag">ONLINE</span>
                     </div>
-                    <div class="freq-number" id="frequency-display">462.5625 MHz</div>
+                    <div class="freq-number" id="contact-display">ROOM: HQ-MAIN</div>
                 </div>
 
-                <!-- Channel & Callsign Settings -->
+                <!-- Connection Mode Switcher: Internet vs Bluetooth -->
+                <div class="conn-mode-switcher">
+                    <button type="button" class="conn-mode-btn active" data-mode="internet">🌐 Internet / Relay</button>
+                    <button type="button" class="conn-mode-btn" data-mode="bluetooth">📶 Bluetooth Direct</button>
+                </div>
+
+                <!-- Room Code & Callsign Controls -->
                 <div class="channel-row">
                     <div class="control-box">
-                        <label for="channel-select">Channel (CH)</label>
-                        <select id="channel-select">
-                            <option value="1">CH 01 (462.5625)</option>
-                            <option value="2">CH 02 (462.5875)</option>
-                            <option value="3">CH 03 (462.6125)</option>
-                            <option value="4">CH 04 (462.6375)</option>
-                            <option value="5">CH 05 (462.6625)</option>
-                            <option value="6">CH 06 (462.6875)</option>
-                            <option value="7">CH 07 (462.7125)</option>
-                            <option value="8">CH 08 (467.5625)</option>
-                            <option value="9">CH 09 (467.5875)</option>
-                            <option value="10">CH 10 (467.6125)</option>
-                            <option value="11">CH 11 (467.6375)</option>
-                            <option value="12">CH 12 (467.6625)</option>
-                            <option value="13">CH 13 (467.6875)</option>
-                            <option value="14">CH 14 (467.7125)</option>
-                            <option value="15">CH 15 (462.5500)</option>
-                            <option value="16">CH 16 (462.7250)</option>
-                        </select>
+                        <label for="room-code-input">Room Code / ID</label>
+                        <div class="inline-control-row">
+                            <input type="text" id="room-code-input" maxlength="24" placeholder="HQ-MAIN">
+                            <button type="button" id="join-room-btn" class="btn-mini-accent" title="Join Room Code">Join</button>
+                            <button type="button" id="new-room-btn" class="btn-mini-ghost" title="Generate Private Room Code">🎲</button>
+                        </div>
                     </div>
 
                     <div class="control-box">
-                        <label for="callsign-input">Callsign</label>
+                        <label for="callsign-input">Your Callsign</label>
                         <input type="text" id="callsign-input" maxlength="12" placeholder="EAGLE-01">
+                    </div>
+                </div>
+
+                <!-- Internet / Tunnel Relay Config Box -->
+                <div id="internet-config-box" class="transport-config-box">
+                    <label for="server-url-input">🌐 Relay / Tunnel URL (Local Wi-Fi, ngrok, Cloudflare)</label>
+                    <div class="inline-control-row">
+                        <input type="text" id="server-url-input" placeholder="http://localhost:8080 or https://xxxx.ngrok-free.app">
+                        <button type="button" id="connect-server-btn" class="btn-mini-accent">Connect</button>
+                    </div>
+                </div>
+
+                <!-- Bluetooth Direct Config Box -->
+                <div id="bluetooth-config-box" class="transport-config-box" style="display: none;">
+                    <label>📶 Bluetooth Direct Link</label>
+                    <div class="bt-control-actions">
+                        <button type="button" id="bt-panel-scan-btn" class="btn-mini-accent">📶 Pair BLE (Web BT)</button>
+                        <button type="button" id="bt-serial-btn" class="btn-mini-ghost">🔌 BT Serial Port</button>
+                        <button type="button" id="bt-host-scan-btn" class="btn-mini-ghost">🔍 PC Paired</button>
+                    </div>
+                    <div id="bt-host-devices-list" class="bt-host-note">
+                        Pair BLE UART, Bluetooth Serial COM port, or use the Python Desktop app for native RFCOMM!
                     </div>
                 </div>
 
@@ -388,11 +406,11 @@
                 </div>
 
                 <div class="tactical-box">
-                    <strong>📡 Multi-Device & Cross-Network Guide</strong>
-                    • <b>Real-Time Sync</b>: Phones and laptops on the same Wi-Fi communicate live!<br>
-                    • <b>Instant QR Code</b>: Tap <b>📱 QR</b> in the header to connect mobile cameras.<br>
-                    • <b>Voice Modulators</b>: Select VHF Radio, NASA Space Comm, or Cyborg FX.<br>
-                    • <b>Morse Telegraph</b>: Tap the Morse tab to key authentic telegraph signals.
+                    <strong>🌐 Internet &amp; 📶 Bluetooth Guide</strong>
+                    • <b>Room Code</b>: Share a Room Code (e.g. <b>HQ-MAIN</b>) or <b>📱 QR</b> Invite Link instead of radio frequencies.<br>
+                    • <b>Internet / Tunnel</b>: Run <code>ngrok http 8080</code> or <code>cloudflared</code> so friends talk from anywhere!<br>
+                    • <b>Bluetooth Direct</b>: Switch to Bluetooth mode to pair BLE UART or Bluetooth Serial devices.<br>
+                    • <b>Desktop Sync</b>: Python Desktop (<code>start-app.bat</code>) joins the same Room live.
                 </div>
             </section>
 
@@ -402,7 +420,7 @@
         <nav class="mobile-nav-bar" id="mobile-nav-bar">
             <button class="mobile-nav-item active" data-tab="tab-radio">
                 <span class="nav-icon">📻</span>
-                <span class="nav-label">Radio & PTT</span>
+                <span class="nav-label">Comms &amp; PTT</span>
             </button>
             <button class="mobile-nav-item" data-tab="tab-chat">
                 <span class="nav-icon">💬</span>
@@ -424,21 +442,29 @@
         </nav>
     </div>
 
-    <!-- ================= INSTANT QR CODE & PHONE CONNECT MODAL ================= -->
+    <!-- ================= INSTANT QR CODE & INVITE LINK MODAL ================= -->
     <div id="share-modal" class="modal-overlay">
         <div class="modal-content qr-modal-card">
             <div class="modal-header">
-                <h2>📱 Connect Phone via QR Code</h2>
+                <h2>📱 Share Invite Link &amp; QR</h2>
                 <button id="close-share-btn" class="btn-close">&times;</button>
             </div>
             <div class="qr-modal-body">
+                <div id="qr-room-badge" class="qr-room-pill">ROOM: HQ-MAIN</div>
                 <p class="qr-instruction-text">
-                    Scan this QR code with your phone camera to join this walkie-talkie channel instantly:
+                    Scan this QR code or send the invite link to connect over Wi-Fi or an Internet Tunnel:
                 </p>
 
                 <!-- High-Definition QR Code Canvas -->
                 <div class="qr-canvas-frame">
                     <canvas id="qr-code-canvas"></canvas>
+                </div>
+
+                <!-- Optional Tunnel / Server Base URL switcher -->
+                <div class="qr-tunnel-row">
+                    <input type="text" id="qr-tunnel-input" placeholder="https://xxxx.ngrok-free.app or Wi-Fi URL">
+                    <button type="button" id="qr-apply-tunnel-btn" class="btn-mini-accent">Apply</button>
+                    <button type="button" id="qr-use-wifi-btn" class="btn-mini-ghost" title="Use Local Wi-Fi URL">Wi-Fi</button>
                 </div>
 
                 <div class="qr-url-display" id="share-url-box">
@@ -447,7 +473,7 @@
 
                 <div class="qr-btn-group">
                     <button id="copy-url-btn" class="btn-bt-scan">
-                        📋 Copy URL
+                        📋 Copy Invite Link
                     </button>
                     <button id="native-share-btn" class="btn-bt-scan btn-green">
                         📲 Share Link
@@ -455,7 +481,7 @@
                 </div>
 
                 <div class="qr-tip-box">
-                    💡 <b>Same Wi-Fi Network</b>: Make sure your phone is connected to the same Wi-Fi or hotspot as this computer to talk live!
+                    💡 <b>Internet Tip</b>: Run <code>ngrok http 8080</code> or <code>cloudflared tunnel --url http://localhost:8080</code> and paste its HTTPS URL above to talk with anyone worldwide!
                 </div>
             </div>
         </div>

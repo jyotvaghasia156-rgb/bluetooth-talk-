@@ -1,7 +1,7 @@
 /**
- * BlueTalk - Operator Authentication & Session Manager (with Google Sign-In)
- * Handles Google OAuth Account Login, Tactical Callsign Generation, Avatar Selection,
- * session persistence in localStorage, and logout.
+ * BlueTalk Pro - Operator Authentication & Session Manager
+ * Handles Google OAuth Identity, Tactical Callsign Generation, Connection Mode,
+ * Room Code onboarding (?room=...), and session persistence.
  */
 
 class AuthManager {
@@ -14,7 +14,9 @@ class AuthManager {
         this.loginForm = document.getElementById('operator-login-form');
         this.googleLoginBtn = document.getElementById('btn-google-login');
         this.callsignInput = document.getElementById('login-callsign-input');
-        this.channelSelect = document.getElementById('login-channel-select');
+        this.modeSelect = document.getElementById('login-mode-select');
+        this.roomInput = document.getElementById('login-room-input');
+        this.randomizeRoomBtn = document.getElementById('btn-randomize-room');
         this.avatarContainer = document.getElementById('avatar-picker');
         this.randomizeBtn = document.getElementById('btn-randomize-callsign');
         this.userProfileBtn = document.getElementById('user-profile-btn');
@@ -54,38 +56,43 @@ class AuthManager {
     }
 
     bindEvents() {
-        // Randomize callsign button
         if (this.randomizeBtn && this.callsignInput) {
             this.randomizeBtn.addEventListener('click', () => {
                 this.callsignInput.value = this.generateRandomCallsign();
             });
         }
 
-        // Google Sign-In Button
+        if (this.randomizeRoomBtn && this.roomInput && window.roomManager) {
+            this.randomizeRoomBtn.addEventListener('click', () => {
+                this.roomInput.value = window.roomManager.generateRandomCode();
+            });
+        }
+
         if (this.googleLoginBtn) {
             this.googleLoginBtn.addEventListener('click', () => {
                 this.handleGoogleLogin();
             });
         }
 
-        // Tactical Callsign Login Form Submission
         if (this.loginForm) {
             this.loginForm.addEventListener('submit', (e) => {
                 e.preventDefault();
                 const callsign = (this.callsignInput.value || this.generateRandomCallsign()).toUpperCase().trim();
-                const channel = parseInt(this.channelSelect.value, 10) || 1;
+                const mode = this.modeSelect ? this.modeSelect.value : 'internet';
+                const rawRoom = this.roomInput ? this.roomInput.value : 'HQ-MAIN';
+                const room = window.roomManager ? window.roomManager.normalizeRoom(rawRoom) : (rawRoom || 'HQ-MAIN');
 
                 this.login({
                     type: 'tactical',
                     callsign: callsign,
                     avatar: this.selectedAvatar,
-                    channel: channel,
+                    mode: mode,
+                    room: room,
                     loginTime: Date.now()
                 });
             });
         }
 
-        // User Profile Header Pill -> Switch Operator / Logout
         if (this.userProfileBtn) {
             this.userProfileBtn.addEventListener('click', () => {
                 this.showLoginModal();
@@ -93,20 +100,17 @@ class AuthManager {
         }
     }
 
-    /**
-     * Google Sign-In Handler
-     * Integrates Google OAuth identity flow
-     */
     async handleGoogleLogin() {
-        // Generate tactical callsign from Google prompt or Google user identity
-        const promptName = prompt('Enter your Google Account Name or Display Name for Google Sign-In:', 'Alex Rivera');
+        const promptName = prompt('Enter your Display Name for Google Sign-In:', 'Alex Rivera');
         if (!promptName || !promptName.trim()) return;
 
         const cleanName = promptName.trim();
         const callsign = cleanName.toUpperCase().replace(/\s+/g, '-').slice(0, 12);
         const email = `${cleanName.toLowerCase().replace(/\s+/g, '.')}@gmail.com`;
+        const mode = this.modeSelect ? this.modeSelect.value : 'internet';
+        const rawRoom = this.roomInput ? this.roomInput.value : 'HQ-MAIN';
+        const room = window.roomManager ? window.roomManager.normalizeRoom(rawRoom) : (rawRoom || 'HQ-MAIN');
 
-        // Generate colorful Google initial avatar
         const googleUser = {
             type: 'google',
             name: cleanName,
@@ -115,7 +119,8 @@ class AuthManager {
             avatar: '👤',
             isGoogleUser: true,
             photoUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(callsign)}`,
-            channel: parseInt(this.channelSelect ? this.channelSelect.value : 1, 10) || 1,
+            mode: mode,
+            room: room,
             loginTime: Date.now()
         };
 
@@ -123,18 +128,29 @@ class AuthManager {
     }
 
     checkExistingSession() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlRoom = urlParams.get('room');
         const saved = localStorage.getItem('bluetalk_operator_session');
+
         if (saved) {
             try {
                 const user = JSON.parse(saved);
+                // Preserve invite link room if present
+                if (urlRoom && window.roomManager) {
+                    user.room = window.roomManager.normalizeRoom(urlRoom);
+                }
                 this.applyUserSession(user, false);
                 return;
             } catch (e) {
                 console.warn('Invalid session, showing login');
             }
         }
+
         if (this.callsignInput && !this.callsignInput.value) {
             this.callsignInput.value = this.generateRandomCallsign();
+        }
+        if (this.roomInput && window.roomManager) {
+            this.roomInput.value = window.roomManager.currentRoom || 'HQ-MAIN';
         }
         this.showLoginModal();
     }
@@ -148,13 +164,17 @@ class AuthManager {
         this.currentUser = userData;
         this.selectedAvatar = userData.avatar || '🦅';
 
-        // Update Peer Network
+        const activeRoom = userData.room || (window.roomManager ? window.roomManager.currentRoom : 'HQ-MAIN');
+        const activeMode = userData.mode || (window.peerNet ? window.peerNet.connectionMode : 'internet');
+
+        if (window.roomManager) {
+            window.roomManager.setRoom(activeRoom);
+        }
         if (window.peerNet) {
             window.peerNet.setCallsign(userData.callsign);
-            window.peerNet.setChannel(userData.channel || 1);
+            window.peerNet.setConnectionMode(activeMode);
         }
 
-        // Update Header UI
         if (this.userAvatarBadge) {
             if (userData.isGoogleUser && userData.photoUrl) {
                 this.userAvatarBadge.innerHTML = `<img src="${userData.photoUrl}" style="width: 20px; height: 20px; border-radius: 50%; vertical-align: middle;">`;
@@ -166,13 +186,6 @@ class AuthManager {
             this.userCallsignLabel.textContent = userData.callsign;
         }
 
-        // Update Channel dropdown in main panel
-        const mainChannelSelect = document.getElementById('channel-select');
-        if (mainChannelSelect) {
-            mainChannelSelect.value = userData.channel || 1;
-        }
-
-        // Hide Login Screen with animation
         if (this.loginOverlay) {
             this.loginOverlay.classList.add('fade-out');
             setTimeout(() => {
@@ -184,16 +197,23 @@ class AuthManager {
         if (isNewLogin) {
             window.sfx.playConnectedTone();
             if (window.ui) {
-                const welcomeMsg = userData.isGoogleUser 
-                    ? `Signed in with Google as ${userData.name} (${userData.callsign})!`
-                    : `Welcome, Operator ${userData.callsign}! Channel ${userData.channel} Online.`;
+                const modeName = activeMode === 'bluetooth' ? 'Bluetooth Direct' : 'Internet Relay';
+                const welcomeMsg = userData.isGoogleUser
+                    ? `Signed in as ${userData.name} (${userData.callsign}) in Room ${activeRoom}!`
+                    : `Welcome ${userData.callsign}! Room ${activeRoom} (${modeName}).`;
                 window.ui.showToast(welcomeMsg, 'success');
-                window.ui.appendSystemNotice(`Operator [${userData.callsign}] authenticated onto CH ${userData.channel}.`);
+                window.ui.appendSystemNotice(`Operator [${userData.callsign}] connected to Room [${activeRoom}] via ${modeName}.`);
             }
         }
     }
 
     showLoginModal() {
+        if (this.roomInput && window.roomManager) {
+            this.roomInput.value = window.roomManager.currentRoom;
+        }
+        if (this.modeSelect && window.peerNet) {
+            this.modeSelect.value = window.peerNet.connectionMode;
+        }
         if (this.loginOverlay) {
             this.loginOverlay.style.display = 'flex';
         }

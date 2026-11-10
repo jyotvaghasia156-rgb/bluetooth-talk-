@@ -2076,3 +2076,167 @@ body {
     100% { box-shadow: 0 0 10px var(--accent-cyan-glow); }
 }
 
+/* =========================================================
+   CONNECTION MODE SWITCHER, ROOM CODE & TUNNEL CONTROLS
+   ========================================================= */
+.conn-mode-switcher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 9px;
+    padding: 4px;
+}
+
+.conn-mode-btn {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 7px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.conn-mode-btn:hover {
+    color: var(--text-main);
+    background: rgba(0, 255, 204, 0.06);
+}
+
+.conn-mode-btn.active[data-mode="internet"] {
+    background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(0, 119, 182, 0.3));
+    border-color: var(--accent-cyan);
+    color: var(--accent-cyan);
+    box-shadow: 0 0 10px var(--accent-cyan-glow);
+}
+
+.conn-mode-btn.active[data-mode="bluetooth"] {
+    background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(37, 99, 235, 0.3));
+    border-color: #38bdf8;
+    color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+}
+
+.inline-control-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.inline-control-row input {
+    flex: 1;
+    min-width: 0;
+}
+
+.btn-mini-accent {
+    background: linear-gradient(135deg, var(--accent-cyan), #0077b6);
+    color: #060b13;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-mini-ghost {
+    background: var(--card-bg);
+    color: var(--accent-cyan);
+    border: 1px solid var(--panel-border);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.btn-mini-ghost:hover {
+    border-color: var(--accent-cyan);
+}
+
+.transport-config-box {
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.transport-config-box label {
+    display: block;
+    font-size: 9px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    margin-bottom: 5px;
+}
+
+.transport-config-box input {
+    background: var(--card-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-main);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    outline: none;
+}
+
+.transport-config-box input:focus {
+    border-color: var(--accent-cyan);
+}
+
+.bt-control-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.bt-host-note {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    line-height: 1.35;
+}
+
+.qr-room-pill {
+    display: inline-block;
+    background: rgba(0, 255, 204, 0.12);
+    border: 1px solid var(--accent-cyan);
+    color: var(--accent-cyan);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+
+.qr-tunnel-row {
+    display: flex;
+    gap: 6px;
+    margin: 10px 0;
+}
+
+.qr-tunnel-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--input-bg);
+    border: 1px solid var(--panel-border);
+    color: var(--text-main);
+    padding: 6px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+    outline: none;
+}
+
+

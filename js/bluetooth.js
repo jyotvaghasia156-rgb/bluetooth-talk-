@@ -1,7 +1,7 @@
 /**
- * BlueTalk - Bluetooth Connectivity & GATT Protocol Engine
- * Handles Web Bluetooth scanning, pairing, GATT characteristic reads/writes,
- * packet framing, and state management.
+ * BlueTalk Pro - Bluetooth Connectivity Engine (BLE GATT + Web Serial SPP)
+ * Handles Web Bluetooth BLE UART scanning/pairing, Bluetooth Serial COM ports
+ * via Web Serial API, newline-framed JSON packet reassembly, and state management.
  */
 
 class BluetoothManager {
@@ -12,49 +12,59 @@ class BluetoothManager {
         this.txCharacteristic = null;
         this.rxCharacteristic = null;
 
+        // Web Serial (Bluetooth SPP Virtual COM Port)
+        this.serialPort = null;
+        this.serialReader = null;
+        this.serialWriter = null;
+        this.serialReadActive = false;
+
+        this.transportKind = null; // 'ble' | 'serial' | null
         this.isConnected = false;
         this.isConnecting = false;
-        this.deviceName = 'No Device';
+        this.hasDataLink = false;
+        this.deviceName = 'No BT Device';
         this.deviceId = null;
 
         // Callbacks
-        this.onStateChange = null; // (state, deviceName) => void
+        this.onStateChange = null; // (state, deviceName, meta) => void
         this.onDataReceived = null; // (packet) => void
         this.onError = null; // (error) => void
 
-        // Custom Bluetooth GATT UUIDs for BlueTalk Walkie-Talkie & Chat
-        // Uses Nordic Semiconductor NUS (Nordic UART Service) UUID standard widely supported across BLE devices/apps
+        // Nordic Semiconductor NUS (Nordic UART Service) UUID standard
         this.UART_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-        this.UART_RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Write to device
-        this.UART_TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Notify/Read from device
+        this.UART_RX_UUID = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+        this.UART_TX_UUID = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
-        // Standard Serial / Generic Comm service UUIDs as fallback
         this.GENERIC_SERVICES = [
             this.UART_SERVICE_UUID,
-            '00001800-0000-1000-8000-00805f9b34fb', // Generic Access
-            '0000180a-0000-1000-8000-00805f9b34fb', // Device Information
-            '0000180f-0000-1000-8000-00805f9b34fb'  // Battery Service
+            '00001800-0000-1000-8000-00805f9b34fb',
+            '0000180a-0000-1000-8000-00805f9b34fb',
+            '0000180f-0000-1000-8000-00805f9b34fb'
         ];
 
-        this.incomingChunks = new Map(); // Packet reassembly buffer
+        this.rxBuffer = '';
     }
 
     isBluetoothAvailable() {
         return !!(navigator.bluetooth && navigator.bluetooth.requestDevice);
     }
 
+    isSerialAvailable() {
+        return !!(navigator.serial && navigator.serial.requestPort);
+    }
+
     /**
-     * Scan and Pair with a nearby Bluetooth Device
+     * Scan and Pair with a nearby BLE Device (Web Bluetooth)
      */
     async scanAndConnect() {
         if (!this.isBluetoothAvailable()) {
-            throw new Error('Web Bluetooth is not supported in this browser. Please use Microsoft Edge or Google Chrome on Windows/Android/Mac.');
+            throw new Error('Web Bluetooth requires Chrome or Edge (on HTTPS or localhost).');
         }
 
         try {
-            this.updateState('connecting', 'Scanning...');
+            this.isConnecting = true;
+            this.updateState('connecting', 'Scanning BLE...');
 
-            // Request Bluetooth device pairing dialog
             this.device = await navigator.bluetooth.requestDevice({
                 acceptAllDevices: true,
                 optionalServices: this.GENERIC_SERVICES
@@ -67,86 +77,216 @@ class BluetoothManager {
                 this.onDisconnected();
             });
 
-            // Connect to GATT Server
-            this.updateState('connecting', `Connecting to ${this.deviceName}...`);
+            this.updateState('connecting', `Connecting ${this.deviceName}...`);
             this.server = await this.device.gatt.connect();
 
-            // Attempt to discover UART Service for bidirectional talking
+            let uartReady = false;
             try {
                 this.service = await this.server.getPrimaryService(this.UART_SERVICE_UUID);
                 this.rxCharacteristic = await this.service.getCharacteristic(this.UART_RX_UUID);
                 this.txCharacteristic = await this.service.getCharacteristic(this.UART_TX_UUID);
 
-                // Subscribe to notifications
                 await this.txCharacteristic.startNotifications();
                 this.txCharacteristic.addEventListener('characteristicvaluechanged', (event) => {
-                    this.handleIncomingRawData(event.target.value);
+                    const decoder = new TextDecoder();
+                    this.appendAndParseStream(decoder.decode(event.target.value));
                 });
+                uartReady = true;
             } catch (serviceErr) {
-                console.warn('NUS UART Service not detected on device; connected in Generic Bluetooth Mode:', serviceErr);
+                console.warn('NUS UART Service not found; connected in Generic Bluetooth Audio/Device mode:', serviceErr);
             }
 
+            this.transportKind = 'ble';
+            this.hasDataLink = uartReady;
             this.isConnected = true;
             this.isConnecting = false;
-            this.updateState('connected', this.deviceName);
+            this.updateState('connected', this.deviceName, { kind: 'ble', hasDataLink: uartReady });
             window.sfx.playConnectedTone();
 
             return {
                 name: this.deviceName,
-                id: this.deviceId
+                id: this.deviceId,
+                kind: 'ble',
+                hasDataLink: uartReady
             };
         } catch (err) {
             this.isConnecting = false;
             this.isConnected = false;
-            this.updateState('disconnected', 'Disconnected');
-            console.error('Bluetooth Connection Error:', err);
+            this.hasDataLink = false;
+            this.updateState('disconnected', 'No BT Device');
             if (this.onError) this.onError(err);
             throw err;
         }
     }
 
     /**
-     * Send packet over Bluetooth GATT
+     * Connect to a Bluetooth Classic Serial Port (SPP COM Port) via Web Serial API
      */
-    async sendPacket(packetObject) {
-        const jsonStr = JSON.stringify(packetObject);
-        const encoder = new TextEncoder();
-        const rawBytes = encoder.encode(jsonStr);
-
-        if (!this.isConnected || !this.rxCharacteristic) {
-            // Not connected via physical BLE UART; pass through to peer dispatcher
-            return false;
+    async connectSerialBluetooth(baudRate = 115200) {
+        if (!this.isSerialAvailable()) {
+            throw new Error('Web Serial API requires Chrome or Edge on Desktop.');
         }
 
         try {
-            // Chunk transmission into 512-byte MTU blocks if needed
-            const CHUNK_SIZE = 500;
-            for (let offset = 0; offset < rawBytes.byteLength; offset += CHUNK_SIZE) {
-                const chunk = rawBytes.slice(offset, offset + CHUNK_SIZE);
-                await this.rxCharacteristic.writeValueWithoutResponse(chunk);
-            }
-            return true;
-        } catch (e) {
-            console.error('Error sending BLE packet:', e);
-            return false;
+            this.isConnecting = true;
+            this.updateState('connecting', 'Selecting BT COM Port...');
+
+            this.serialPort = await navigator.serial.requestPort();
+            await this.serialPort.open({ baudRate });
+
+            const info = this.serialPort.getInfo ? this.serialPort.getInfo() : {};
+            this.deviceName = info.usbProductId ? `BT-Serial-${info.usbProductId}` : 'Bluetooth Serial SPP';
+            this.transportKind = 'serial';
+            this.hasDataLink = true;
+            this.isConnected = true;
+            this.isConnecting = false;
+
+            this.serialWriter = this.serialPort.writable.getWriter();
+            this.serialReadActive = true;
+            this.readSerialLoop();
+
+            this.updateState('connected', this.deviceName, { kind: 'serial', hasDataLink: true });
+            window.sfx.playConnectedTone();
+
+            return { name: this.deviceName, kind: 'serial', hasDataLink: true };
+        } catch (err) {
+            this.isConnecting = false;
+            this.isConnected = false;
+            this.hasDataLink = false;
+            this.updateState('disconnected', 'No BT Device');
+            if (this.onError) this.onError(err);
+            throw err;
         }
     }
 
-    handleIncomingRawData(dataView) {
+    async readSerialLoop() {
+        const decoder = new TextDecoder();
         try {
-            const decoder = new TextDecoder();
-            const text = decoder.decode(dataView);
-            const packet = JSON.parse(text);
+            while (this.serialPort && this.serialPort.readable && this.serialReadActive) {
+                this.serialReader = this.serialPort.readable.getReader();
+                try {
+                    while (this.serialReadActive) {
+                        const { value, done } = await this.serialReader.read();
+                        if (done) break;
+                        if (value) {
+                            this.appendAndParseStream(decoder.decode(value, { stream: true }));
+                        }
+                    }
+                } finally {
+                    this.serialReader.releaseLock();
+                }
+            }
+        } catch (e) {
+            console.warn('Bluetooth Serial stream closed:', e);
+        } finally {
+            if (this.transportKind === 'serial' && this.isConnected) {
+                this.onDisconnected();
+            }
+        }
+    }
+
+    /**
+     * Send newline-framed JSON packet over BLE GATT or Bluetooth Serial SPP
+     */
+    async sendPacket(packetObject) {
+        if (!this.isConnected || !this.hasDataLink) {
+            return false;
+        }
+
+        const line = JSON.stringify(packetObject) + '\n';
+        const encoder = new TextEncoder();
+        const rawBytes = encoder.encode(line);
+
+        if (this.transportKind === 'serial' && this.serialWriter) {
+            try {
+                await this.serialWriter.write(rawBytes);
+                return true;
+            } catch (e) {
+                console.error('Error sending Bluetooth Serial packet:', e);
+                return false;
+            }
+        }
+
+        if (this.transportKind === 'ble' && this.rxCharacteristic) {
+            try {
+                const CHUNK_SIZE = 240;
+                for (let offset = 0; offset < rawBytes.byteLength; offset += CHUNK_SIZE) {
+                    const chunk = rawBytes.slice(offset, offset + CHUNK_SIZE);
+                    if (this.rxCharacteristic.writeValueWithoutResponse) {
+                        await this.rxCharacteristic.writeValueWithoutResponse(chunk);
+                    } else {
+                        await this.rxCharacteristic.writeValue(chunk);
+                    }
+                }
+                return true;
+            } catch (e) {
+                console.error('Error sending BLE packet:', e);
+                return false;
+            }
+        }
+
+        return false;
+    }
+
+    appendAndParseStream(textChunk) {
+        if (!textChunk) return;
+        this.rxBuffer += textChunk;
+
+        // Handle newline-delimited packets or standalone JSON
+        if (this.rxBuffer.includes('\n')) {
+            const lines = this.rxBuffer.split('\n');
+            this.rxBuffer = lines.pop() || '';
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed) continue;
+                this.dispatchJsonLine(trimmed);
+            }
+        } else if (this.rxBuffer.trim().startsWith('{') && this.rxBuffer.trim().endsWith('}')) {
+            const candidate = this.rxBuffer.trim();
+            if (this.dispatchJsonLine(candidate)) {
+                this.rxBuffer = '';
+            }
+        }
+    }
+
+    dispatchJsonLine(jsonText) {
+        try {
+            const packet = JSON.parse(jsonText);
             if (this.onDataReceived) {
                 this.onDataReceived(packet);
             }
+            return true;
         } catch (e) {
-            console.error('Error parsing received BLE data packet:', e);
+            return false;
         }
     }
 
-    disconnect() {
-        if (this.device && this.device.gatt.connected) {
+    async fetchHostPairedDevices() {
+        if (!window.location.protocol.startsWith('http')) return null;
+        try {
+            const res = await fetch('/api/bluetooth/devices', { cache: 'no-store' });
+            if (!res.ok) return null;
+            return await res.json();
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async disconnect() {
+        this.serialReadActive = false;
+        if (this.serialReader) {
+            try { await this.serialReader.cancel(); } catch (e) {}
+            this.serialReader = null;
+        }
+        if (this.serialWriter) {
+            try { this.serialWriter.releaseLock(); } catch (e) {}
+            this.serialWriter = null;
+        }
+        if (this.serialPort) {
+            try { await this.serialPort.close(); } catch (e) {}
+            this.serialPort = null;
+        }
+        if (this.device && this.device.gatt && this.device.gatt.connected) {
             this.device.gatt.disconnect();
         }
         this.onDisconnected();
@@ -155,13 +295,18 @@ class BluetoothManager {
     onDisconnected() {
         this.isConnected = false;
         this.isConnecting = false;
-        this.updateState('disconnected', 'Disconnected');
-        window.sfx.playDisconnectedTone();
+        this.hasDataLink = false;
+        this.transportKind = null;
+        this.rxCharacteristic = null;
+        this.txCharacteristic = null;
+        this.rxBuffer = '';
+        this.updateState('disconnected', 'No BT Device');
+        if (window.sfx) window.sfx.playDisconnectedTone();
     }
 
-    updateState(state, deviceName) {
+    updateState(state, deviceName, meta = {}) {
         if (this.onStateChange) {
-            this.onStateChange(state, deviceName);
+            this.onStateChange(state, deviceName, meta);
         }
     }
 }
